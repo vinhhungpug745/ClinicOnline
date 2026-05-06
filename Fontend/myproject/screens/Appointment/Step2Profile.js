@@ -6,6 +6,9 @@ import {
 import { Card, SegmentedButtons, Chip } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import COLORS from "../../styles/Colors";
+import InsuranceCard from "../../components/User/Profile/InsuranceCard";
+import PersonalInfoCard from "../../components/User/Profile/PersonalInfoCard";
+import MedicalInfoCard from "../../components/User/Profile/MedicalInfoCard";
 
 const BLOOD_TYPES = ["A+", "B+", "AB+", "O+", "A-", "B-", "AB-", "O-"];
 
@@ -43,153 +46,9 @@ const Step2Profile = ({ data, updatePatient, updateProfile }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         >
-            {/* ── THÔNG TIN CÁ NHÂN ── */}
-            <SectionLabel icon="account-edit-outline" text="Thông tin cá nhân" />
-            <Card style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-
-                    <View style={styles.row2}>
-                        <Field label="Họ" required>
-                            <StyledInput
-                                placeholder="Nguyễn"
-                                value={p.last_name}
-                                onChangeText={(v) => updatePatient("last_name", v)}
-                            />
-                        </Field>
-                        <Field label="Tên" required>
-                            <StyledInput
-                                placeholder="Văn A"
-                                value={p.first_name}
-                                onChangeText={(v) => updatePatient("first_name", v)}
-                            />
-                        </Field>
-                    </View>
-
-                    <Field label="Số điện thoại" required>
-                        <StyledInput
-                            placeholder="0xxxxxxxxx"
-                            keyboardType="phone-pad"
-                            value={p.phone}
-                            onChangeText={(v) => updatePatient("phone", v)}
-                        />
-                    </Field>
-
-                    <Field label="Email">
-                        <StyledInput
-                            placeholder="example@email.com"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            value={p.email}
-                            onChangeText={(v) => updatePatient("email", v)}
-                        />
-                    </Field>
-
-                    <Field label="Ngày sinh">
-                        <StyledInput
-                            placeholder="DD/MM/YYYY"
-                            value={p.dob}
-                            onChangeText={(v) => updatePatient("dob", v)}
-                        />
-                    </Field>
-
-                    <Field label="Giới tính">
-                        <SegmentedButtons
-                            value={p.gender}
-                            onValueChange={(v) => updatePatient("gender", v)}
-                            style={styles.segmented}
-                            theme={{
-                                colors: {
-                                    secondaryContainer: COLORS.primary,
-                                    onSecondaryContainer: COLORS.white,
-                                    outline: COLORS.border,
-                                },
-                            }}
-                            buttons={[
-                                { value: 'male', label: '👨 Nam', style: styles.segBtn },
-                                { value: 'female', label: '👩 Nữ', style: styles.segBtn },
-                                { value: 'other', label: 'Khác', style: styles.segBtn },
-                            ]}
-                        />
-                    </Field>
-
-                </Card.Content>
-            </Card>
-
-            {/* ── BẢO HIỂM Y TẾ ── */}
-            <SectionLabel icon="card-account-details-outline" text="Bảo hiểm y tế" />
-            <Card style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-
-                    <Field label="Số thẻ BHYT">
-                        <StyledInput
-                            placeholder="VD: HS4012345678901"
-                            value={p.profile.insurance_number}
-                            onChangeText={(v) => updateProfile("insurance_number", v)}
-                            autoCapitalize="characters"
-                        />
-                    </Field>
-
-                    <Field label="Ngày hết hạn thẻ">
-                        <StyledInput
-                            placeholder="DD/MM/YYYY"
-                            value={p.profile.insurance_expiry_date}
-                            onChangeText={(v) => updateProfile("insurance_expiry_date", v)}
-                        />
-                    </Field>
-
-                    <View style={styles.infoBadge}>
-                        <MaterialCommunityIcons name="information-outline" size={14} color={COLORS.primary} />
-                        <Text style={styles.infoBadgeText}>
-                            Thẻ BHYT giúp giảm chi phí khám chữa bệnh theo quy định nhà nước
-                        </Text>
-                    </View>
-
-                </Card.Content>
-            </Card>
-
-            {/* ── THÔNG TIN Y TẾ ── */}
-            <SectionLabel icon="heart-pulse" text="Thông tin y tế" />
-            <Card style={[styles.card, { marginBottom: 8 }]}>
-                <Card.Content style={styles.cardContent}>
-
-                    <Field label="Nhóm máu">
-                        <View style={styles.bloodGroup}>
-                            {BLOOD_TYPES.map(bt => (
-                                <Pressable
-                                    key={bt}
-                                    onPress={() => updateProfile("blood_group", bt)}
-                                    style={[
-                                        styles.bloodChip,
-                                        p.profile.blood_group === bt && styles.bloodChipActive,
-                                    ]}
-                                >
-                                    <Text style={[
-                                        styles.bloodChipText,
-                                        p.profile.blood_group === bt && styles.bloodChipTextActive,
-                                    ]}>
-                                        {bt}
-                                    </Text>
-                                </Pressable>
-                            ))}
-                        </View>
-                    </Field>
-
-                    <Field label="Dị ứng">
-                        <View style={styles.chipInputRow}>
-                            <StyledInput
-                                placeholder="VD: Penicillin, hải sản..."
-                                value={p.profile.allergy_history ?? ""}
-                                onChangeText={(v) => updateProfile("allergy_history", v)}
-                                returnKeyType="done"
-                                style={{ flex: 1 }}
-                            />
-                        </View>
-
-
-                    </Field>
-
-                </Card.Content>
-            </Card>
+            <PersonalInfoCard data={data} updatePatient={updatePatient} />
+            <InsuranceCard data={data} updateProfile={updateProfile} />
+            <MedicalInfoCard data={data} updateProfile={updateProfile} />
 
             {/* ── LÝ DO KHÁM ── */}
             <SectionLabel icon="clipboard-text-outline" text="Lý do khám" />

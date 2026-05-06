@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     ScrollView,
@@ -17,6 +17,13 @@ import {
 } from 'react-native-paper';
 import { MyUserContext } from '../../utils/contexts/MyUserContext';
 import COLORS from '../../styles/Colors';
+import AppButton from '../../components/AppButton';
+import { createPublic } from '../../utils/apiHelper';
+import { endpoints } from '../../configs/Apis';
+import AppSnackbar from '../../components/AppSnackbar';
+import * as SecureStore from 'expo-secure-store';
+import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const MENU_SECTIONS = [
     {
@@ -43,9 +50,33 @@ const MENU_SECTIONS = [
     },
 ];
 
-const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem}) => {
+const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
     const theme = useTheme();
-    const { user } = React.useContext(MyUserContext);
+    const { user, dispatch } = React.useContext(MyUserContext);
+    const [snackbar, setSnackbar] = useState({});
+    const [loading, setLoading] = useState(false);
+    const handleLogout = async () => {
+        const token = await AsyncStorage.getItem("access_token");
+        await createPublic(
+            endpoints.logout,
+            {
+                token: token,
+                client_id: CLIENT_ID_APP,
+                client_secret: CLIENT_SECRET_APP,
+            },
+            () => { },
+            (err) => setSnackbar({ visible: true, message: err, type: 'error' }),
+            {},
+            async () => {
+                await SecureStore.deleteItemAsync("user");
+                await AsyncStorage.clear();
+                dispatch({ type: "LOGOUT" });
+                setLoading(false);
+            },
+            setLoading
+        );
+    }
+
     return (
         <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
             <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
@@ -59,7 +90,7 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem}) => {
                     <View style={styles.heroInner}>
                         <Surface style={styles.avatarRing} elevation={2}>
                             <Avatar.Icon
-                                size={84}
+                                size={136}
                                 icon="account-outline"
                                 style={{ backgroundColor: theme.colors.surfaceVariant }}
                                 color={theme.colors.onSurfaceVariant}
@@ -83,48 +114,62 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem}) => {
                                         Chào mừng bạn đã trở lại! Hãy khám phá các dịch vụ của chúng tôi.
                                     </Text>
                                 </View>
-                                {user.role=="doctor"}
-                                <Button icon="camera" mode="contained" onPress={() => navigation.navigate('Schedule')}>
-                                    Tạo Lich Khám bệnh
-                                </Button>
+                                {user.role == "doctor" && (
+                                    <AppButton
+                                        type="book"
+                                        style={{ borderWidth: 1, borderColor: "#FFFFFF" }}
+                                        onPress={() => navigation.navigate('Schedule')}
+                                    />
+                                )}
+
+                                <AppButton
+                                    type="detail"
+                                    label="Xem chi tiết hồ sơ"
+                                    style={{ borderWidth: 1, borderColor: "#FFFFFF" }}
+                                    onPress={() => navigation.navigate('ProfileDetail')}
+                                />
+
                             </>
-                        ):(
+                        ) : (
                             <>
-                            <Text
-                            variant="bodyMedium"
-                            style={[styles.heroSub, { color: theme.colors.onPrimary, opacity: 0.8 }]}
-                        >
-                            Đăng nhập để trải nghiệm đầy đủ tính năng
-                        </Text>
+                                <Text
+                                    variant="bodyMedium"
+                                    style={[styles.heroSub, { color: theme.colors.onPrimary, opacity: 0.8 }]}
+                                >
+                                    Đăng nhập để trải nghiệm đầy đủ tính năng
+                                </Text>
 
-                        {/* Nút đăng nhập / đăng ký */}
-                        <View style={styles.authRow}>
-                            <Button
-                                mode="contained"
-                                onPress={onLogin}
-                                contentStyle={styles.btnContent}
-                                style={[styles.btnLogin, { backgroundColor: theme.colors.onPrimary }]}
-                                labelStyle={[styles.btnLabel, { color: theme.colors.primary }]}
-                                onPressIn={() => { navigation.navigate('Login'); }}
-                            >
-                                Đăng nhập
-                            </Button>
+                                {/* Nút đăng nhập / đăng ký */}
+                                <View style={styles.authRow}>
 
-                            <Button
-                                mode="outlined"
-                                onPress={onRegister}
-                                contentStyle={styles.btnContent}
-                                style={styles.btnRegister}
-                                labelStyle={[styles.btnLabel, { color: theme.colors.onPrimary }]}
-                                textColor={theme.colors.onPrimary}
-                                onPressIn={() => { navigation.navigate('Register'); }}
-                            >
-                                Đăng ký
-                            </Button>
-                        </View>
+                                    <AppButton
+                                        type="login"
+                                        mode="contained"
+                                        color={theme.colors.onPrimary}
+                                        textColor={theme.colors.primary}
+                                        contentStyle={styles.btnContent}
+                                        style={[styles.btnLogin, { backgroundColor: theme.colors.onPrimary }]}
+                                        labelStyle={styles.btnLabel}
+                                        onPress={onLogin}
+                                        onPressIn={() => navigation.navigate('Login')}
+                                    />
+
+                                    <AppButton
+                                        type="register"
+                                        mode="contained"
+                                        color={theme.colors.onPrimary}
+                                        textColor={theme.colors.primary}
+                                        contentStyle={styles.btnContent}
+                                        style={[styles.btnLogin, { backgroundColor: theme.colors.onPrimary }]}
+                                        labelStyle={styles.btnLabel}
+                                        onPress={onRegister}
+                                        onPressIn={() => navigation.navigate('Register')}
+                                    />
+
+                                </View>
                             </>
                         )}
-                        
+
                     </View>
 
                     {/* Wave bottom */}
@@ -196,7 +241,17 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem}) => {
                         Phiên bản 1.0.0
                     </Text>
                 </View>
+                {user &&(
+                    <AppButton loading={loading} type='logout' style={{ marginTop: 20 }} onPress={handleLogout} />
+                )}
             </ScrollView>
+            <AppSnackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                sub={snackbar.sub}
+                type={snackbar.type}
+                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
+            />
         </View>
     );
 };
@@ -217,14 +272,13 @@ const styles = StyleSheet.create({
     heroInner: {
         alignItems: 'center',
         paddingTop: 56,
-        paddingBottom: 48,
-        paddingHorizontal: 24,
+        paddingBottom: 30,
     },
+
     avatarRing: {
         borderRadius: 999,
         padding: 4,
         backgroundColor: 'rgba(255,255,255,0.25)',
-        marginBottom: 16,
     },
     heroName: {
         fontWeight: '700',

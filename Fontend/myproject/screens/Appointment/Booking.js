@@ -1,6 +1,6 @@
 import { View, StyleSheet } from "react-native";
 import { Button } from "react-native-paper";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import BookingHeader from "../../components/Appointment/Bookingheader";
 import Step1Schedule from "../Appointment/Step1Schedule"
 import Step2Profile from "./Step2Profile";
@@ -124,28 +124,36 @@ const Booking = () => {
     };
 
     const appointment = async () => {
-        setLoading(true)
-        if (validate(bookingData)) {
+        setLoading(true);
+        try {
+            if (!validate(bookingData)) {
+                setSnackbar({ visible: true, message: "Vui lòng điền đầy đủ thông tin!", type: 'error' });
+                return; // ← return trong finally vẫn chạy setLoading(false)
+            }
+
             await createWithAuth(
                 endpoints.appointments,
                 formatBooking(bookingData),
                 (data) => {
                     setSnackbar({ visible: true, message: "Đặt lịch thành công!", type: 'success' });
-                    setSuccess(true)
-                }
-                ,
+                    setSuccess(true);
+                    setBookingData({ shift: "morning", slots: [], patient: user });
+                },
                 (type, msg) => {
                     setSnackbar({ visible: true, message: msg, type: 'error' });
                 }
             );
-            setLoading(false);
-            setBookingData({
-                shift: "morning",
-                slots: [],
-                patient: user
-            })
+        } finally {
+            setLoading(false); // ← luôn chạy dù thành công, thất bại, hay validate fail
         }
-    }
+    };
+
+    useEffect(() => {
+        setBookingData(prev => ({
+            ...prev,
+            patient: user,
+        }));
+    }, [user]);
 
     return (
         <View style={styles.screen}>
@@ -157,22 +165,22 @@ const Booking = () => {
 
             {step < 3 && (
                 <View style={styles.footer}>
-                    {step === 2 ? ( 
+                    {step === 2 ? (
                         !success && (
-                        <>
-                            <Button
-                                mode="contained"
-                                disabled={!canGoNext() || loading}
-                                loading={loading}
-                                onPress={() => appointment()}
-                                style={styles.btnPrimary}
-                                contentStyle={styles.btnContent}
-                                labelStyle={styles.btnLabel}
-                            >
-                                Xác nhận đặt lịch
-                            </Button>
-                        </>
-                    )) : (
+                            <>
+                                <Button
+                                    mode="contained"
+                                    disabled={!canGoNext() || loading}
+                                    loading={loading}
+                                    onPress={() => appointment()}
+                                    style={styles.btnPrimary}
+                                    contentStyle={styles.btnContent}
+                                    labelStyle={styles.btnLabel}
+                                >
+                                    Xác nhận đặt lịch
+                                </Button>
+                            </>
+                        )) : (
                         <>
                             <Button
                                 mode="contained"
@@ -249,7 +257,7 @@ const styles = StyleSheet.create({
     },
     btnPrimary: {
         borderRadius: 12,
-        backgroundColor: COLORS.primaryButton,
+        backgroundColor: COLORS.btnPrimary,
     },
     btnOutlined: {
         borderRadius: 12,

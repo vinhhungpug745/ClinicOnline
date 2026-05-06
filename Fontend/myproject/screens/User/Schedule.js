@@ -1,5 +1,5 @@
 import { View, ScrollView } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Button,
     SegmentedButtons,
@@ -9,16 +9,16 @@ import {
 import Mystyles from "../../styles/Mystyles";
 import DaychipGroup from "../../components/Schedule/DayChipGroup";
 import TimeSlot from "../../components/Schedule/TimeSlot";
+import { createWithAuth, fetchWithAuth } from "../../utils/apiHelper";
+import { endpoints } from "../../configs/Apis";
+import { Calendar } from 'react-native-calendars';
+import AppButton from "../../components/AppButton";
+import AppSnackbar from "../../components/AppSnackbar";
 
 const Schedule = () => {
 
     const [shift, setShift] = useState('morning');
-    const [selectedDays, setSelectedDays] = useState(null);
-    const [schedule, setSchedule] = useState([]);
-    const [selectedSlots, setSelectedSlots] = useState([]);
-    const [startDate, setStartDate] = useState(null);
-    const [endDate, setEndDate] = useState(null);
-
+    const [selectedDay, setSelectedDay] = useState(0);
 
     const generateSlots = (fromHour, toHour, duration = 60, step = 15) => {
         const slots = [];
@@ -28,14 +28,14 @@ const Schedule = () => {
         const fmt = (m) => {
             const h = Math.floor(m / 60).toString().padStart(2, '0');
             const min = (m % 60).toString().padStart(2, '0');
-            return `${h}:${min}`;
+            return `${h}:${min}:00`;
         };
 
         while (startMinutes + duration <= limitMinutes) {
             const endMinutes = startMinutes + duration;
             slots.push({
-                start: fmt(startMinutes),
-                end: fmt(endMinutes),
+                start_time: fmt(startMinutes),
+                end_time: fmt(endMinutes),
                 label: `${fmt(startMinutes)} - ${fmt(endMinutes)}`,
             });
             startMinutes += step;
@@ -43,7 +43,23 @@ const Schedule = () => {
         return slots;
     };
 
-    const DAYS = ['T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7', 'CN'];
+    const DAY_KEYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const [loading, setLoading] = useState(false);
+
+    const DAYS = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() + i + 1);
+        return {
+            key: DAY_KEYS[date.getDay()],
+            value: `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+        };
+    });
+
+    const [schedule, setSchedule] = useState({
+        "date": DAYS[0].value,
+        "time_slots": []
+    })
+
 
     const SLOTS = {
         morning: generateSlots(6, 12),
@@ -51,310 +67,246 @@ const Schedule = () => {
         evening: generateSlots(18, 22),
     };
 
+    const today = new Date();
+
+    const minDate = DAYS[0].value;
+
+    const maxDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    const [selectDay, setSelectDay] = useState([])
+    const [snackbar, setSnackbar] = useState({});
+    const loadWorkDay = async () => {
+        await fetchWithAuth(
+            endpoints.workday,
+            (data) => {
+                setSelectDay(data)
+            }
+        )
+    }
+
+    const markedDates = selectDay.map(d => d.date).reduce((acc, date) => {
+        acc[date] = {
+            marked: true,
+            dotColor: '#E24B4A',
+        };
+        return acc;
+    }, {});
+
+    if (schedule.date) {
+        markedDates[schedule.date] = {
+            ...markedDates[schedule.date],
+            selected: true,
+            selectedColor: '#185FA5',
+        };
+    }
+
+
+    const createWorkday = async () => {
+        console.log(schedule)
+        await createWithAuth(
+            endpoints.workday,
+            schedule,
+            (data) => {
+                setSnackbar({ visible: true, message: "Tạo lịch trình thành công!", type: 'success' });
+                loadWorkDay()
+                setSchedule({
+                    date: DAYS[0].value,
+                    time_slots: []
+                });
+            },
+            (type, msg, errData) => {
+                const detail = errData ? JSON.stringify(errData) : msg;
+                setSnackbar({ visible: true, message: detail, type: 'error' });
+            },
+            setLoading
+        )
+    }
+
+    useEffect(() => {
+        loadWorkDay()
+    }, [])
+
     return (
-        <ScrollView
-            style={{
-                marginTop: 100, paddingHorizontal: 16
-            }}
-            showsVerticalScrollIndicator={false}
-        >
-            {/* TITLE */}
-            <Text
-                variant="titleLarge"
+        <View>
+
+            <ScrollView
                 style={{
-                    marginBottom: 16,
-                    fontWeight: '700',
-                    color: '#0f172a'
+                    marginTop: 100, paddingHorizontal: 16
                 }}
+                showsVerticalScrollIndicator={false}
             >
-                Tạo lịch làm việc
-            </Text>
+                {/* TITLE */}
+                <Text
+                    variant="titleLarge"
+                    style={{
+                        marginBottom: 16,
+                        fontWeight: '700',
+                        color: '#0f172a'
+                    }}
+                >
+                    Tạo lịch làm việc
+                </Text>
+                {/* DAYS */}
 
-            {/* DATE RANGE */}
-            <Card style={{
-                marginBottom: 16,
-                borderRadius: 16,
-                backgroundColor: '#fff',
-                elevation: 2
-            }}>
-                <Card.Content>
-                    <Text style={{
-                        marginBottom: 10,
-                        fontWeight: '600',
-                        color: '#0f766e'
-                    }}>
-                        Khoảng thời gian
-                    </Text>
-
-                    <View style={{
-                        flexDirection: 'row',
-                        gap: 10
-                    }}>
-
-                        <Button
-                            mode="outlined"
-                            style={{
-                                flex: 1,
-                                borderRadius: 12,
-                                borderColor: '#38bdf8'
-                            }}
-                            textColor="#0369a1"
-                            onPress={() => setStartDate(new Date())}
-                        >
-                            {startDate
-                                ? startDate.toLocaleDateString('vi-VN')
-                                : 'Ngày bắt đầu'}
-                        </Button>
-
-                        <Button
-                            mode="outlined"
-                            style={{
-                                flex: 1,
-                                borderRadius: 12,
-                                borderColor: '#38bdf8'
-                            }}
-                            textColor="#0369a1"
-                            onPress={() => {
-                                const d = new Date();
-                                d.setDate(d.getDate() + 3);
-                                setEndDate(d);
-                            }}
-                        >
-                            {endDate
-                                ? endDate.toLocaleDateString('vi-VN')
-                                : 'Ngày kết thúc'}
-                        </Button>
-
-                    </View>
-                </Card.Content>
-            </Card>
-
-            {/* DAYS */}
-            <Card style={{
-                marginBottom: 16,
-                borderRadius: 16,
-                backgroundColor: '#fff',
-                elevation: 2
-            }}>
-                <Card.Content>
-
-                    <Text style={{
-                        marginBottom: 10,
-                        fontWeight: '600',
-                        color: '#0f766e'
-                    }}>
-                        Chọn ngày trong tuần
-                    </Text>
-
-                    <DaychipGroup
-                        selected={selectedDays}
-                        onToggle={(day) => {
-                            setSelectedDays(day);
-                            setShift('morning');
-                            setSelectedSlots([]);
-                        }}
-                        DAYS={DAYS}
-                    />
-
-                </Card.Content>
-            </Card>
-
-            {/* SHIFT */}
-            <Card style={{
-                marginBottom: 16,
-                borderRadius: 16,
-                backgroundColor: '#fff',
-                elevation: 2
-            }}>
-                <Card.Content>
-
-                    <Text style={{
-                        marginBottom: 10,
-                        fontWeight: '600',
-                        color: '#0f766e'
-                    }}>
-                        Chọn ca làm việc
-                    </Text>
-
-                    <SegmentedButtons
-                        value={shift}
-                        onValueChange={(value) => {
-                            setShift(value);
-                            setSelectedSlots([]);
-                        }}
-                        style={{
-                            marginTop: 4,
-                            borderRadius: 14,
-                            backgroundColor: '#f1f5f9',
-                            padding: 4,
-                        }}
-                        theme={{
-                            colors: {
-                                secondaryContainer: '#2196F3',
-                                onSecondaryContainer: '#ffffff',
-                                outline: '#e2e8f0',
-                            },
-                        }}
-                        buttons={[
-                            {
-                                value: 'morning',
-                                label: 'Sáng',
-                                style: {
-                                    borderRadius: 10,
-                                },
-                            },
-                            {
-                                value: 'afternoon',
-                                label: 'Chiều',
-                                style: {
-                                    borderRadius: 10,
-                                },
-                            },
-                            {
-                                value: 'evening',
-                                label: 'Tối',
-                                style: {
-                                    borderRadius: 10,
-                                },
-                            },
-                        ]}
-                    />
-
-                </Card.Content>
-            </Card>
-
-            {/* TIME SLOT */}
-            <Card style={{
-                marginBottom: 16,
-                borderRadius: 16,
-                backgroundColor: '#fff',
-                elevation: 2
-            }}>
-                <Card.Content>
-
-                    <TimeSlot
-                        shift={shift}
-                        selectedSlots={selectedSlots}
-                        SLOTS={SLOTS}
-                        onSlotsChange={(slots) => setSelectedSlots(slots)}
-                    />
-
-                </Card.Content>
-            </Card>
-
-            {/* PREVIEW */}
-            {selectedSlots.length > 0 && (
                 <Card style={{
                     marginBottom: 16,
                     borderRadius: 16,
-                    backgroundColor: '#ecfeff',
-                    borderWidth: 1,
-                    borderColor: '#a5f3fc'
+                    backgroundColor: '#fff',
+                    elevation: 2
                 }}>
                     <Card.Content>
 
                         <Text style={{
-                            marginBottom: 6,
+                            marginBottom: 10,
                             fontWeight: '600',
-                            color: '#155e75'
+                            color: '#0f766e'
                         }}>
-                            Đã chọn ({selectedSlots.length})
+                            Chọn ngày trong tuần
                         </Text>
 
-                        {selectedSlots.map((s, i) => (
-                            <Text key={i} style={{ color: '#0f172a' }}>
-                                • {s.start} - {s.end}
-                            </Text>
-                        ))}
+                        <Calendar
+                            onDayPress={(day) => {
+                                if (selectDay.map(d => d.date).includes(day.dateString)) return;
+                                setSchedule(prev => ({ ...prev, date: day.dateString }));
+                            }}
+                            markedDates={markedDates}
+                            minDate={minDate}
+                            maxDate={maxDate}
+                        />
 
                     </Card.Content>
                 </Card>
-            )}
 
-            {/* BUTTON */}
-            <Button
-                mode="contained"
-                contentStyle={{ paddingVertical: 5 }}
-                style={[Mystyles.primaryButton, { marginBottom: 10 }]}
-                labelStyle={{
-                    fontWeight: '700',
-                    fontSize: 15
-                }}
-                onPress={() => {
-                    if (selectedDays === null || selectedSlots.length === 0) {
-                        console.log('Thiếu dữ liệu');
-                        return;
-                    }
 
-                    const dayMap = [
-                        'Monday', 'Tuesday', 'Wednesday',
-                        'Thursday', 'Friday', 'Saturday', 'Sunday'
-                    ];
 
-                    const dayName = dayMap[selectedDays];
+                {/* SHIFT */}
+                <Card style={{
+                    marginBottom: 16,
+                    borderRadius: 16,
+                    backgroundColor: '#fff',
+                    elevation: 2
+                }}>
+                    <Card.Content>
 
-                    const newSlots = selectedSlots.map(s => ({
-                        start_time: s.start,
-                        end_time: s.end
-                    }));
+                        <Text style={{
+                            marginBottom: 10,
+                            fontWeight: '600',
+                            color: '#0f766e'
+                        }}>
+                            Chọn ca làm việc
+                        </Text>
 
-                    setSchedule(prev => {
-                        const exist = prev.find(
-                            item => item.day_of_week === dayName
-                        );
-
-                        let newData;
-
-                        if (exist) {
-
-                            const isOverlap = (a, b) =>
-                                a.start_time < b.end_time &&
-                                b.start_time < a.end_time;
-
-                            const conflict = newSlots.some(newSlot =>
-                                exist.timeslot_set.some(oldSlot =>
-                                    isOverlap(oldSlot, newSlot)
-                                )
-                            );
-
-                            if (conflict) {
-                                console.log('Trùng hoặc đè giờ');
-                                return prev;
-                            }
-
-                            newData = prev.map(item =>
-                                item.day_of_week === dayName
-                                    ? {
-                                        ...item,
-                                        timeslot_set: [
-                                            ...(item.timeslot_set || []),
-                                            ...newSlots
-                                        ]
-                                    }
-                                    : item
-                            );
-
-                        } else {
-                            newData = [
-                                ...prev,
+                        <SegmentedButtons
+                            value={shift}
+                            onValueChange={(value) => {
+                                setShift(value);
+                            }}
+                            style={{
+                                marginTop: 4,
+                                borderRadius: 14,
+                                backgroundColor: '#f1f5f9',
+                                padding: 4,
+                            }}
+                            theme={{
+                                colors: {
+                                    secondaryContainer: '#2196F3',
+                                    onSecondaryContainer: '#ffffff',
+                                    outline: '#e2e8f0',
+                                },
+                            }}
+                            buttons={[
                                 {
-                                    day_of_week: dayName,
-                                    timeslot_set: newSlots
-                                }
-                            ];
-                        }
+                                    value: 'morning',
+                                    label: 'Sáng',
+                                    style: {
+                                        borderRadius: 10,
+                                    },
+                                },
+                                {
+                                    value: 'afternoon',
+                                    label: 'Chiều',
+                                    style: {
+                                        borderRadius: 10,
+                                    },
+                                },
+                                {
+                                    value: 'evening',
+                                    label: 'Tối',
+                                    style: {
+                                        borderRadius: 10,
+                                    },
+                                },
+                            ]}
+                        />
 
-                        console.log(JSON.stringify(newData, null, 2));
-                        return newData;
-                    });
+                    </Card.Content>
+                </Card>
 
-                    setSelectedSlots([]);
-                }}
-            >
-                Lưu lịch trình
-            </Button>
+                {/* TIME SLOT */}
+                <Card style={{
+                    marginBottom: 16,
+                    borderRadius: 16,
+                    backgroundColor: '#fff',
+                    elevation: 2
+                }}>
+                    <Card.Content>
 
-        </ScrollView>
+                        <TimeSlot
+                            shift={shift}
+                            selectedSlots={schedule.time_slots}
+                            SLOTS={SLOTS}
+                            onSlotsChange={(slots) => setSchedule(prev => ({ ...prev, time_slots: slots }))}
+                        />
+
+                    </Card.Content>
+                </Card>
+
+                {/* PREVIEW */}
+                {schedule.time_slots.length > 0 && (
+                    <Card style={{
+                        marginBottom: 16,
+                        borderRadius: 16,
+                        backgroundColor: '#ecfeff',
+                        borderWidth: 1,
+                        borderColor: '#a5f3fc'
+                    }}>
+                        <Card.Content>
+
+                            <Text style={{
+                                marginBottom: 6,
+                                fontWeight: '600',
+                                color: '#155e75'
+                            }}>
+                                Đã chọn ({schedule.time_slots.length})
+                            </Text>
+
+                            {schedule.time_slots.map((s, i) => (
+                                <Text key={i} style={{ color: '#0f172a' }}>
+                                    • {s.start_time} - {s.end_time}
+                                </Text>
+                            ))}
+
+                        </Card.Content>
+                    </Card>
+                )}
+
+                {/* BUTTON */}
+                <AppButton
+                    type="save"
+                    label="Lưu lịch trình"
+                    loading={loading}
+                    onPress={createWorkday}
+                />
+
+            </ScrollView>
+            <AppSnackbar
+                visible={snackbar.visible}
+                message={snackbar.message}
+                sub={snackbar.sub}
+                type={snackbar.type}
+                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
+            />
+        </View>
     );
 };
 

@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Apis, { endpoints } from "../../configs/Apis";
 import { createPublic } from "../../utils/apiHelper";
 import AppSnackbar from "../../components/AppSnackbar";
+import AppButton from "../../components/AppButton";
 
 
 const Register = ({ navigation }) => {
@@ -63,6 +64,7 @@ const Register = ({ navigation }) => {
                 autoComplete: 'password',
             },
         }]
+
     const [errors, setErrors] = useState({});
 
     const pickImage = async () => {
@@ -167,7 +169,8 @@ const Register = ({ navigation }) => {
                     } else {
                         setSnackbar({ visible: true, message: "Mất kết nối!", sub: msg, type: 'error' });
                     }
-                }
+                },
+                setLoading
             );
         };
     }
@@ -259,9 +262,7 @@ const Register = ({ navigation }) => {
             </View>
 
             <View style={{ marginTop: 40 }}>
-                <Button style={Mystyles.btnPrimary} icon="account-plus" mode="contained" onPress={register} loading={loading} disabled={loading}>
-                    Đăng ký
-                </Button>
+                <AppButton loading={loading} type="register" icon="account-plus" onPress={register}/>
             </View>
 
             <Text style={{ marginVertical: 20, textAlign: 'center', color: '#a4a4ad' }}>------ Hoặc đăng ký bằng ------</Text>

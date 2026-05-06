@@ -34,7 +34,7 @@ const DaychipGroup = ({ selected, onToggle, DAYS, WORKDAYS }) => {
           showSelectedCheck={false}
           compact
         >
-          {DAY_VI[label]} {formatDate(WORKDAYS[i])}
+          {DAY_VI[label] ?? label} {WORKDAYS?.[i] ? formatDate(WORKDAYS[i]) : ''}
         </Chip>
       ))}
     </View>

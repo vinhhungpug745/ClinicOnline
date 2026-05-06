@@ -1,3 +1,5 @@
+from calendar import monthrange
+
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from cliniconlineapi.models import User, StaffProfile, CustomerProfile, Specialty, StaffSpecialty, WorkDay, TimeSlot
@@ -148,20 +150,16 @@ class WorkDayLiteSerializer(serializers.ModelSerializer):
         model = WorkDay
         fields = ["id", "date"]
 
-    def validate_date(self, value):
-        if not value:
-            raise serializers.ValidationError(
-                "Không được bỏ trống Ngày"
-            )
-        else:
-            if value < date.today():
-                raise serializers.ValidationError(
-                    "Không được tạo ngày trong quá khứ"
-                )
-            if (value - date.today()).days > 7:
-                raise serializers.ValidationError(
-                    "Không được chọn ngày quá 7 ngày so với hiện tại"
-                )
+    def validate_date(self ,value):
+        today = date.today()
+        last_day = monthrange(today.year, today.month)[1]
+        end_of_month = today.replace(day=last_day)
+
+        if value > end_of_month:
+            raise serializers.ValidationError("Chỉ được đặt lịch trong tháng hiện tại.")
+        if value < today:
+            raise serializers.ValidationError("Không được đặt lịch trong quá khứ.")
+
         return value
 
     def to_representation(self, instance):

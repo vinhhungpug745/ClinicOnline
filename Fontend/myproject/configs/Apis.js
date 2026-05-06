@@ -9,13 +9,15 @@ export const endpoints = {
     'doctors': '/doctors/',
     'doctorDetail': (id) => `/doctors/${id}/doctor_detail/`,
     'doctorWorkDay': (id) => `/doctors/${id}/doctor_workday/`,
+    'doctorspecialty': (id) => `/specialtys/${id}/doctors/`,
+    'specialty': '/specialtys/',
     'login': '/o/token/',
+    'logout': '/o/revoke_token/',
     'profile': '/users/profile_user/',
     'register': '/users/',
-    'specialty': '/specialtys/',
-    'doctorspecialty': (id) => `/specialtys/${id}/doctors/`,
     'appointments': '/appointments/',
     'appointmentDetail': (id) => `/appointments/${id}/detail/`,
+    'workday': '/users/workday_staff/'
 }
 
 export const authApis = (token) => {

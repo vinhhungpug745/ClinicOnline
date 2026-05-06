@@ -10,6 +10,8 @@ import { MyUserContext } from "../../utils/contexts/MyUserContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from 'expo-secure-store';
 import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
+import AppButton from "../../components/AppButton";
+import { createPublic, fetchPublic, fetchWithAuth } from "../../utils/apiHelper";
 
 const Login = ({ navigation, route }) => {
     const [user, setUser] = useState({
@@ -74,62 +76,43 @@ const Login = ({ navigation, route }) => {
         const err = validate(user);
         setErrors(err);
         if (Object.keys(err).length === 0) {
-            try {
-                setLoading(true);
-                console.info(user);
-                const res = await Apis.post(endpoints.login, {
+            await createPublic(
+                endpoints.login,
+                {
                     username: user.username,
                     password: user.password,
                     client_id: CLIENT_ID_APP,
                     client_secret: CLIENT_SECRET_APP,
                     grant_type: "password",
-                });
-
-                await AsyncStorage.setItem("access_token", res.data.access_token);
-
-                if (res.status === 200) {
+                },
+                async (dataToken) => {
+                    await AsyncStorage.setItem("access_token", dataToken.access_token);
 
                     setTimeout(async () => {
-                        let userInfo = await authApis(res.data.access_token).get(endpoints.profile);
-                        console.info("User info:", userInfo.data);
-                        dispatch({ type: "LOGIN", payload: userInfo.data });
-                        await SecureStore.setItemAsync("user", JSON.stringify(userInfo.data));
+                        await fetchWithAuth(
+                            endpoints.profile,
+                            async (data) => {
+                                dispatch({ type: "LOGIN", payload: data });
+                                const toSave = {
+                                    ...data, 
+                                    tokenExpiresAt: Date.now() + dataToken.expires_in * 1000,// 
+                                    refresh_token: dataToken.refresh_token,
+                                }
+                                await SecureStore.setItemAsync("user", JSON.stringify(toSave));
+                            },
+                            (type, msg) => setSnackbar({ visible: true, message: msg, type })
+                        );
                     }, 500);
 
                     navigation.navigate("Home", {
                         successMessage: "Chào mừng bạn đã trở lại! Hãy khám phá các dịch vụ của chúng tôi.",
                     });
-                }
-
-            } catch (err) {
-                const status = err.response?.status;
-                if (status >= 400 && status < 500) {
-                    setSnackbar({
-                        visible: true,
-                        message: "Đăng nhập thất bại!",
-                        sub: err.response?.data?.detail || "Vui lòng kiểm tra lại thông tin.",
-                        type: 'error',
-                    });
-                    console.log("Chi tiết lỗi 400:", JSON.stringify(err.response?.data));
-                } else if (status >= 500) {
-                    setSnackbar({
-                        visible: true,
-                        message: "Lỗi máy chủ!",
-                        sub: "Vui lòng thử lại sau.",
-                        type: 'error',
-                    });
-                } else {
-                    setSnackbar({
-                        visible: true,
-                        message: "Không thể kết nối!",
-                        sub: "Vui lòng kiểm tra kết nối mạng.",
-                        type: 'error',
-                    });
-                }
-            }
-            finally {
-                setLoading(false);
-            }
+                },
+                (type, msg) => setSnackbar({ visible: true, type: 'error', message: msg }),
+                {},
+                null,
+                setLoading
+            )
         }
 
     }
@@ -153,9 +136,7 @@ const Login = ({ navigation, route }) => {
 
                 <InputField list={infoWithError} user={user} setUser={setUser} setErrors={setErrors} />
                 <View style={{ marginTop: 40 }}>
-                    <Button loading={loading} disabled={loading} style={Mystyles.btnPrimary} icon="account-plus" mode="contained" onPress={handleLogin}>
-                        Đăng nhập
-                    </Button>
+                    <AppButton loading={loading} type="login" icon="account-plus" onPress={handleLogin} />
                 </View>
 
                 <Text style={{ marginVertical: 20, textAlign: 'center', color: '#a4a4ad' }}>------ Hoặc đăng nhập bằng ------</Text>

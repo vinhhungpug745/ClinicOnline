@@ -19,54 +19,66 @@ const handleError = (err, onError) => {
 
 // ============ CÓ AUTH ============
 
-export const fetchWithAuth = async (endpoint, onSuccess, onError, params = {}) => {
+export const fetchWithAuth = async (endpoint, onSuccess, onError, params = {}, setLoading) => {
+    setLoading?.(true);
     try {
         const token = await AsyncStorage.getItem("access_token");
         let res = await authApis(token).get(endpoint, { params });
         if (res.status === 200) onSuccess(res.data);
     } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
 };
 
-export const createWithAuth = async (endpoint, body, onSuccess, onError) => {
+export const createWithAuth = async (endpoint, body, onSuccess, onError, setLoading) => {
+    setLoading?.(true);
     try {
         const token = await AsyncStorage.getItem("access_token");
         let res = await authApis(token).post(endpoint, body);
         if (res.status === 200 || res.status === 201) onSuccess(res.data);
     } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
 };
 
-export const updateWithAuth = async (endpoint, body, onSuccess, onError) => {
+export const updateWithAuth = async (endpoint, body, onSuccess, onError, setLoading) => {
+    setLoading?.(true);
     try {
         const token = await AsyncStorage.getItem("access_token");
         let res = await authApis(token).put(endpoint, body);
         if (res.status === 200) onSuccess(res.data);
     } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
 };
 
-export const deleteWithAuth = async (endpoint, onSuccess, onError) => {
+export const deleteWithAuth = async (endpoint, onSuccess, onError, setLoading) => {
+    setLoading?.(true);
     try {
         const token = await AsyncStorage.getItem("access_token");
         let res = await authApis(token).delete(endpoint);
         if (res.status === 200 || res.status === 204) onSuccess();
     } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
 };
 
 // ============ KHÔNG AUTH ============
 
-// GET - public
-export const fetchPublic = async (endpoint, onSuccess, onError, params = {}) => {
+export const fetchPublic = async (endpoint, onSuccess, onError, params = {}, setLoading) => {
+    setLoading?.(true);
     try {
-        let res = await Apis.get(endpoint, {params});
-        if (res.status === 200) onSuccess(res.data.results ?? res.data);
+        let res = await Apis.get(endpoint, { params });
+        if (res.status === 200)
+            onSuccess(res.data.results ?? res.data, res.data.next);
     } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
 };
 
-// POST - public (login, register,...)
-export const createPublic = async (endpoint, body, onSuccess, onError) => {
+export const createPublic = async (endpoint, body, onSuccess, onError, headers = {}, onFinally, setLoading) => {
+    setLoading?.(true);
     try {
-        let res = await Apis.post(endpoint, body,{
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        let res = await Apis.post(endpoint, body, { headers });
         if (res.status === 200 || res.status === 201) onSuccess(res.data);
     } catch (err) { handleError(err, onError); }
+    finally {
+        onFinally?.();
+        setLoading?.(false);
+    }
 };

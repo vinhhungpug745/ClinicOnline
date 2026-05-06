@@ -10,6 +10,7 @@ import { genderMap } from "../../utils/mapping";
 import Mystyles from "../../styles/Mystyles";
 import { MyUserContext } from "../../utils/contexts/MyUserContext";
 import { Button } from "react-native-paper";
+import AppButton from "../../components/AppButton";
 
 const AppointmentDetail = ({ route }) => {
     const id = route.params?.id;
@@ -87,18 +88,26 @@ const AppointmentDetail = ({ route }) => {
                 />
 
             </ScrollView>
-            {user?.role === "doctor" && (
-                <Button
-                    mode="contained"
-                    style={[Mystyles.primaryButton,{ marginVertical: 16, marginHorizontal: 16 }]}
-                    onPress={() =>
-                        navigation.navigate("CreateMedicalRecord", {
-                            appointmentId: appointmentDetail.id,
-                        })
-                    }
-                >
-                    Tạo hồ sơ bệnh án
-                </Button>
+            {user?.role === "doctor" ? (
+                <>
+                    <Button
+                        mode="contained"
+                        style={[Mystyles.primaryButton, { marginVertical: 16, marginHorizontal: 16 }]}
+                        onPress={() =>
+                            navigation.navigate("CreateMedicalRecord", {
+                                appointmentId: appointmentDetail.id,
+                            })
+                        }
+                    >
+                        Tạo hồ sơ bệnh án
+                    </Button>
+                </>
+
+            ) : (
+                <>
+                    <AppButton type= "delete" onPress={console.log("anh yeu em") }/>
+                    <AppButton type="edit" onPress={console.log("anh yêu em")} />
+                </>
             )}
             <AppSnackbar
                 visible={snackbar.visible}

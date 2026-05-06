@@ -125,6 +125,11 @@ class AppointmentViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
     serializer_class = AppointmentSerializer
     permission_classes = [permission.IsAppointmentOwner]
 
+    def get_permissions(self):
+        if self.action == 'create':  # ← CreateAPIView
+            return [permission.IsCustomerRole()]
+        return [permission.IsAppointmentOwner()]
+
     def get_queryset(self):
         user = self.request.user
 

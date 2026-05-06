@@ -83,13 +83,12 @@ const Step1Schedule = ({ data, updateBooking }) => {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
-    
+
 
     const loadSpecialty = async () => {
         await fetchWithAuth(
             endpoints.specialty,
             (data) => {
-                console.log(data.next);
                 if (data.next == null) {
                     setPage(null);
                     setHasMore(false);
@@ -104,7 +103,9 @@ const Step1Schedule = ({ data, updateBooking }) => {
     const LoadWorkDayDoctor = async (id) => {
         await fetchWithAuth(
             endpoints.doctorWorkDay(id),
-            (data) => { setWorkDay(formatSlots(data)), console.log(formatSlots(data)) },
+            (data) => {
+                setWorkDay(formatSlots(data))
+            },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
         )
     };
@@ -112,7 +113,9 @@ const Step1Schedule = ({ data, updateBooking }) => {
     const loadDoctorsBySpecialty = async (specialtyId) => {
         await fetchWithAuth(
             endpoints.doctorspecialty(specialtyId),
-            (data) => { setDOCTORS(formatDoctors(data)), console.log(data) },
+            (data) => {
+                setDOCTORS(formatDoctors(data))
+            },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
         )
     };
@@ -121,6 +124,11 @@ const Step1Schedule = ({ data, updateBooking }) => {
         if (page == null) return;
         loadSpecialty();
     }, [page]);
+
+console.log("data.slots:", data.slots);
+console.log("data.shift:", data.shift);
+console.log("data.id_schedule:", data.id_schedule);
+console.log("workDay found:", workDay.find(d => d.id === data.id_schedule));
 
     return (
         <View>
@@ -137,10 +145,10 @@ const Step1Schedule = ({ data, updateBooking }) => {
                     data={specialies}
                     onSelect={(item) => {
                         updateBooking(
-                            "bulk",{
-                                specialty: item,
-                                doctor : null
-                            }
+                            "bulk", {
+                            specialty: item,
+                            doctor: null
+                        }
                         )
                         loadDoctorsBySpecialty(item.id);
                     }}
@@ -185,7 +193,7 @@ const Step1Schedule = ({ data, updateBooking }) => {
                                         });
                                     }}
                                     DAYS={(workDay.map(day => day.day_of_week))}
-                                    WORKDAYS={workDay.map(d=>d.date)}
+                                    WORKDAYS={workDay.map(d => d.date)}
                                 />
                             </Card.Content>
                         </Card>

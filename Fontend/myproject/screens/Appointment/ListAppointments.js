@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { FlatList, View, Text, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, ScrollView, } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -8,6 +8,8 @@ import { endpoints } from "../../configs/Apis";
 import AppointmentCard from "../../components/Appointment/AppointmentCard";
 import COLORS from "../../styles/Colors";
 import Mystyles from "../../styles/Mystyles";
+import AppList from "../../components/AppList";
+import { MyUserContext } from "../../utils/contexts/MyUserContext";
 
 
 
@@ -19,17 +21,18 @@ const FILTERS = [
     { key: "Cancelled", label: "Đã huỷ" },
 ];
 
-const ListAppointments = ({navigation}) => {
+const ListAppointments = ({ navigation }) => {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeFilter, setActiveFilter] = useState("all");
     const [error, setError] = useState(null);
+    const { user, dispatch } = React.useContext(MyUserContext);
     const loadAppointments = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoading(true);
         setError(null);
-
+        
         try {
             await fetchWithAuth(endpoints.appointments, (data) => {
                 setAppointments(data);
@@ -43,8 +46,9 @@ const ListAppointments = ({navigation}) => {
     };
 
     useEffect(() => {
+        if (!user) return; 
         loadAppointments();
-    }, []);
+    }, [user]);
 
     const onRefresh = useCallback(() => loadAppointments(true), []);
 
@@ -60,7 +64,6 @@ const ListAppointments = ({navigation}) => {
         );
     }
 
-    // ── Error ──
     if (error) {
         return (
             <View style={styles.center}>
@@ -84,7 +87,7 @@ const ListAppointments = ({navigation}) => {
             </View>
 
             {/* ── Filter chips (scroll ngang) ── */}
-            <View style ={{paddingVertical: 10}}>
+            <View style={{ paddingVertical: 10 }}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -108,12 +111,9 @@ const ListAppointments = ({navigation}) => {
                 </ScrollView>
             </View>
             {/* ── List ── */}
-            <FlatList
+            <AppList
                 data={filteredData}
                 keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={
-                    filteredData.length === 0 ? styles.emptyContainer : styles.listContent
-                }
                 renderItem={({ item }) => (
                     <AppointmentCard
                         item={item}
@@ -122,30 +122,15 @@ const ListAppointments = ({navigation}) => {
                         }
                     />
                 )}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        colors={[COLORS.primary]}
-                        tintColor={COLORS.primary}
-                    />
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                emptyIcon="calendar-blank-outline"
+                emptyTitle="Không có lịch hẹn"
+                emptyText={
+                    activeFilter === "all"
+                        ? "Bạn chưa có lịch hẹn nào."
+                        : "Không có lịch hẹn ở trạng thái này."
                 }
-                ListEmptyComponent={
-                    <View style={styles.center}>
-                        <MaterialCommunityIcons
-                            name="calendar-blank-outline"
-                            size={56}
-                            color={COLORS.textMuted}
-                        />
-                        <Text style={styles.stateTitle}>Không có lịch hẹn</Text>
-                        <Text style={styles.stateText}>
-                            {activeFilter === "all"
-                                ? "Bạn chưa có lịch hẹn nào."
-                                : "Không có lịch hẹn ở trạng thái này."}
-                        </Text>
-                    </View>
-                }
-                showsVerticalScrollIndicator={false}
             />
         </View>
     );

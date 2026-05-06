@@ -9,12 +9,12 @@ const TimeSlot = ({ shift, selectedSlots, onSlotsChange, SLOTS, multiple = true 
   const isSelected = (slot) => {
     if (multiple) {
       return selectedSlots?.some(
-        s => s.start === slot.start && s.end === slot.end
+        s => s.start_time === slot.start_time && s.end_time === slot.end_time
       );
     } else {
       return selectedSlots &&
-        selectedSlots.start === slot.start &&
-        selectedSlots.end === slot.end;
+        selectedSlots.start_time === slot.start_time &&
+        selectedSlots.end_time === slot.end_time;
     }
   };
 
@@ -24,15 +24,15 @@ const TimeSlot = ({ shift, selectedSlots, onSlotsChange, SLOTS, multiple = true 
     if (multiple) {
       if (exists) {
         onSlotsChange(
-          selectedSlots.filter(s => !(s.start === slot.start && s.end === slot.end))
+          selectedSlots.filter(s => !(s.start_time === slot.start_time && s.end_time === slot.end_time))
         );
       } else
-        onSlotsChange([...selectedSlots, {id: slot.id, start: slot.start, end: slot.end }]);
+        onSlotsChange([...selectedSlots, { start_time: slot.start_time, end_time: slot.end_time }]);
     } else {
       if (exists) {
         onSlotsChange(null); // bỏ chọn
       } else
-        onSlotsChange({id: slot.id, start: slot.start, end: slot.end });
+        onSlotsChange({start_time: slot.start_time, end_time: slot.end_time });
     }
   };
 
