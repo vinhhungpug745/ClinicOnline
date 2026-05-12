@@ -1,10 +1,13 @@
 import random
+from datetime import  timedelta, time
+from decimal import Decimal
+from django.utils import timezone
 
 import django, os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 django.setup()
 
-from cliniconlineapi.models import User, StaffProfile, Specialty, ServiceNormal
+from cliniconlineapi.models import User, StaffProfile, Specialty, ServiceNormal, CustomerProfile, TimeSlot, WorkDay
 
 specialties_data = [
     {"name": "Nội tổng quát", "description": "Khám và điều trị các bệnh nội khoa tổng quát"},
@@ -117,3 +120,191 @@ for i, letter in enumerate(alphabet):
         print(f"✅ Tạo: {user.last_name} {user.first_name} | {username} | Chuyên khoa: {specialty_names}")
     else:
         print(f"⚠️  Đã tồn tại: {username}")
+
+
+
+from cliniconlineapi.models import (
+    User,
+    Medicine,
+    Appointment,
+)
+
+customers = []
+
+for i in range(5):
+
+    username = f'customer{i+1}'
+
+    customer, created = User.objects.get_or_create(
+        username=username
+    )
+
+    if created:
+
+        customer.set_password('Customer@123')
+
+        customer.first_name = f'Khách{i+1}'
+        customer.last_name = 'Nguyễn'
+
+        customer.email = f'{username}@gmail.com'
+
+        customer.phone = f'09000000{i+1}'
+
+        customer.role = User.Role.CUSTOMER
+
+        customer.gender = random.choice([
+            User.Gender.MALE,
+            User.Gender.FEMALE
+        ])
+
+        customer.save()
+
+        CustomerProfile.objects.create(
+            user=customer,
+            height=random.randint(150, 185),
+            weight=random.randint(45, 90),
+            blood_group=random.choice([
+                'A+',
+                'B+',
+                'O+',
+                'AB+'
+            ])
+        )
+
+        print(f'✅ Created customer: {username}')
+
+    else:
+        print(f'⚠️ Customer exists: {username}')
+
+    customers.append(customer)
+
+medicine_names = [
+    'Paracetamol',
+    'Amoxicillin',
+    'Vitamin C',
+    'Ibuprofen',
+    'Aspirin',
+    'Cefixime',
+    'Panadol',
+    'Decolgen',
+]
+
+units = [
+    'Viên',
+    'Hộp',
+    'Chai',
+    'Gói'
+]
+
+for i in range(100):
+
+    name = f'{random.choice(medicine_names)} {i+1}'
+
+    medicine, created = Medicine.objects.get_or_create(
+        name=name,
+        defaults={
+            'unit': random.choice(units),
+
+            'description': f'Thuốc {name}',
+
+            'stock': random.randint(20, 300),
+
+            'price': Decimal(
+                random.randint(5000, 200000)
+            ),
+
+            'active': True
+        }
+    )
+
+    if created:
+        print(f'✅ Medicine: {name}')
+
+# =========================================================
+# WORKDAY + TIMESLOT + APPOINTMENT
+# =========================================================
+services = list(ServiceNormal.objects.all())
+time_slots_data = [
+    (time(8, 0), time(8, 30)),
+    (time(8, 30), time(9, 0)),
+    (time(9, 0), time(9, 30)),
+    (time(9, 30), time(10, 0)),
+    (time(10, 0), time(10, 30)),
+]
+
+appointments_created = 0
+doctors = list(
+    User.objects.filter(
+        role=User.Role.DOCTOR
+    )
+)
+if not doctors:
+    raise Exception("Không có doctor")
+
+for i in range(5):
+
+    customer = random.choice(customers)
+
+    doctor = random.choice(doctors)
+
+    service = random.choice(services)
+
+    work_date = timezone.now().date() + timedelta(
+        days=random.randint(1, 5)
+    )
+
+    staff_profile = StaffProfile.objects.get(
+        user=doctor
+    )
+
+    work_day, _ = WorkDay.objects.get_or_create(
+        staff_profile=staff_profile,
+        date=work_date
+    )
+
+    start_time, end_time = random.choice(
+        time_slots_data
+    )
+
+    time_slot, created = TimeSlot.objects.get_or_create(
+        work_day=work_day,
+        start_time=start_time,
+        defaults={
+            'end_time': end_time,
+            'status': TimeSlot.Status.AVAILABLE
+        }
+    )
+
+    if not created:
+        continue
+
+    appointment = Appointment.objects.create(
+        reason='Khám tổng quát',
+
+        symptoms=random.choice([
+            'Đau họng',
+            'Sốt',
+            'Ho',
+            'Mệt mỏi'
+        ]),
+
+        status=Appointment.Status.CONFIRMED,
+
+        customer=customer,
+
+        doctor=doctor,
+
+        serviceNormal=service,
+
+        time_slot=time_slot
+    )
+
+    time_slot.status = TimeSlot.Status.BOOKED
+    time_slot.save()
+
+    appointments_created += 1
+
+    print(
+        f'✅ Appointment ID={appointment.id} | '
+        f'{customer.username} -> {doctor.username}'
+    )

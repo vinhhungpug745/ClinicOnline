@@ -64,13 +64,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
-OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
+#
+#OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
 
 ALLOWED_HOSTS = [
-    '192.168.100.110',
+    '192.168.100.110',#huy
     '192.168.100.173',
-    'localhost'
+    'localhost',
+    '192.168.219.1' #hung
 ]
 
 ROOT_URLCONF = 'myproject.urls'
@@ -80,7 +81,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'cliniconline',
         'USER': 'root',
-        'PASSWORD': 'Abc123',
+        'PASSWORD': '123456',
         'HOST': '' # mặc định localhost
     }
 }

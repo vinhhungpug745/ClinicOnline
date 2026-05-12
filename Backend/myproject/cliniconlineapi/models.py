@@ -86,7 +86,7 @@ class StaffSpecialty(BaseModel):
 
 class WorkDay(BaseModel):
     staff_profile = models.ForeignKey("StaffProfile", on_delete=models.CASCADE, related_name="work_days")
-    date = models.DateField(null=False,blank=False,unique=True)
+    date = models.DateField(null=False,blank=False)
     class Meta:
         unique_together = ("staff_profile", "date")
         ordering = ["date"]
@@ -145,18 +145,21 @@ class Appointment(BaseModel):
 class MedicalRecord(BaseModel):
     appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE,related_name="medical_record")
     diagnosis = models.TextField()           # Chẩn đoán
-    symptoms = models.TextField(blank=True)  # Triệu chứng
-    notes = models.TextField(blank=True)
+    symptoms = models.TextField(blank=True,default='')  # Triệu chứng
+    medical_notes = models.TextField(blank=True, default='')
     follow_up_date = models.DateField(null=True, blank=True)  # Ngày tái khám
 
+    class Meta:
+        ordering = ["-created_date"]
+
     def __str__(self):
-        return f"Bệnh án: {self.appointment.customer} - {self.created_date.date()}"
+        return f"Bệnh án: {self.appointment.customer.get_full_name()} - {self.created_date.date()}"
 
     def get_customer(self):
-        return self.appointment.customer.user
+        return self.appointment.customer
 
     def get_doctor(self):
-        return self.appointment.get_doctor().user
+        return self.appointment.doctor
 
 # thuốc
 class Medicine(BaseModel):
@@ -164,6 +167,7 @@ class Medicine(BaseModel):
     unit = models.CharField(max_length=50)       #  viên, chai, ống...
     description = models.TextField(blank=True)
     stock = models.IntegerField(default=0)
+    production_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True,blank=True)
     price = models.FloatField(default=0)
 
@@ -180,11 +184,17 @@ class Medicine(BaseModel):
             return False
         return self.expiry_date <= (timezone.now().date() + datetime.timedelta(days=30))
 
+    def is_expired(self):
+        from django.utils import timezone
+        if not self.expiry_date:
+            return False
+        return self.expiry_date < timezone.now().date()
+
 
 # đơn thuốc
 class Prescription(BaseModel):
     medical_record = models.OneToOneField(MedicalRecord, on_delete=models.CASCADE,related_name="prescription")
-    notes = models.TextField(blank=True)   # Hướng dẫn chung
+    instruction_notes = models.TextField(blank=True)   # Hướng dẫn chung
 
     def __str__(self):
         return f"Đơn thuốc: {self.medical_record}"
