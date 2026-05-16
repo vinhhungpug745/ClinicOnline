@@ -2,6 +2,7 @@ echo "=== cài đặt thư viện từ requirements.txt ==="
 pip install -r requirements.txt
 
 echo "=== Thực thi migrate cơ sở dữ liệu ==="
+python manage.py makemigrations
 python manage.py migrate
 
 echo "=== Tạo superuser ==="

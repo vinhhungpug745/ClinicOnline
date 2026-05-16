@@ -1,7 +1,12 @@
+from django.utils  import timezone
 from django.core import validators
+from datetime import timedelta, date
+import re
+
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-
+# ========================== USER VALIDATORS ==============================
 class NameRegexValidator(validators.RegexValidator):
     regex = r'^[a-zA-ZÀ-ỹ\s]+$'
     message = 'Họ tên chỉ được chứa chữ cái và khoảng trắng.'
@@ -47,3 +52,483 @@ class NameValidator:
 
         if errors:
             raise ValidationError(errors)
+
+# ===============================================================================
+def has_dangerous_keywords(value):
+    """Kiểm tra SQL injection keywords"""
+    keywords = ['DROP', 'DELETE', 'INSERT', 'UPDATE', 'UNION', 'SELECT', 'ALTER', 'CREATE']
+    return any(re.search(rf'\b{kw}\b', value, re.IGNORECASE) for kw in keywords)
+
+
+def has_xss_patterns(value):
+    """Kiểm tra XSS patterns"""
+    patterns = [r'<script', r'javascript:', r'onerror=', r'onclick=']
+    return any(re.search(pattern, value, re.IGNORECASE) for pattern in patterns)
+# ========================== MEDICINE VALIDATORS ==============================
+class  MedicineNameRegexValidator(validators.RegexValidator):
+    regex = r'^[a-zA-Z0-9\s\-\(\)\.]+$'
+    message = 'Tên thuốc chỉ được chứa chữ, số, khoảng trắng, và dấu -()'
+
+class MedicineNameValidator:
+    def __init__(self, min_length=2, max_length=100):
+        self.validators = [
+            MedicineNameRegexValidator(),
+            MinLengthValidator(min_length),
+            MaxLengthValidator(max_length),
+        ]
+
+    def __call__(self, value):
+        errors = []
+        for validator in self.validators:
+            try:
+                validator(value)
+            except Exception as e:
+                errors.append(e.detail if hasattr(e, "detail") else str(e))
+
+            # ✅ Thêm check SQL injection & XSS
+            if has_dangerous_keywords(value):
+                errors.append("Tên thuốc chứa từ khóa không hợp lệ")
+
+            if has_xss_patterns(value):
+                errors.append("Tên thuốc chứa nội dung không hợp lệ")
+
+            if errors:
+                raise ValidationError(errors)
+
+
+#đơn vị thuốc
+class UnitValidator:
+    VALID_UNITS = ['viên', 'chai', 'ống', 'hộp', 'vỉ', 'gói', 'lọ', 'ml']
+
+    def __call__(self, value):
+        if value not in self.VALID_UNITS:
+            raise ValidationError(
+                f"Đơn vị phải là một trong: {', '.join(self.VALID_UNITS)}"
+            )
+
+#mô tả thuốc
+class DescriptionValidator:
+    def __init__(self, max_length=1000):
+        self.max_length = max_length
+
+    def __call__(self, value):
+        if not value:
+            return
+
+        if len(value) > self.max_length:
+            raise ValidationError(
+                f"Mô tả không được quá {self.max_length} ký tự"
+            )
+
+        if has_xss_patterns(value):
+            raise ValidationError("Mô tả chứa nội dung không hợp lệ")
+
+        if has_dangerous_keywords(value):
+            raise ValidationError("Mô tả chứa từ khóa không hợp lệ")
+
+#số lượng thuốc
+class StockValidator:
+    MIN_STOCK = 0
+    MAX_STOCK = 1000000
+
+    def __call__(self, value):
+        errors = []
+
+        # Kiểm tra kiểu dữ liệu
+        if not isinstance(value, int):
+            errors.append("Số lượng phải là số nguyên")
+
+        # Kiểm tra phạm vi
+        if value < self.MIN_STOCK:
+            errors.append("Số lượng không được âm")
+
+        if value > self.MAX_STOCK:
+            errors.append(f"Số lượng không được quá {self.MAX_STOCK:,}")
+
+        if errors:
+            raise ValidationError(errors)
+
+#ngày sản xuất
+class ProductionDateValidator:
+    def __call__(self, value):
+        if not value:
+            return
+        today = timezone.now().date()
+        if value > today:
+            raise ValidationError(
+                "Ngày sản xuất không được lớn hơn ngày hôm nay"
+            )
+
+#ngày hết hạn
+class ExpiryDateValidator:
+    MAX_YEARS = 10
+    def __call__(self, value):
+        if not value:
+            raise ValidationError("Ngày hết hạn là bắt buộc")
+        today = timezone.now().date()
+        # Ngày hết hạn phải > ngày hôm nay
+        if value <= today:
+            raise ValidationError(
+                "Ngày hết hạn phải lớn hơn ngày hôm nay"
+            )
+
+        # Không được quá 10 năm
+        max_date = today + timedelta(days=365 * self.MAX_YEARS)
+        if value > max_date:
+            raise ValidationError(
+                f"Ngày hết hạn không được vượt quá {self.MAX_YEARS} năm"
+            )
+
+#khoảng ngày (expiry > production)
+class DateRangeValidator:
+    def __call__(self, data):
+        production_date = data.get('production_date')
+        expiry_date = data.get('expiry_date')
+
+        if production_date and expiry_date:
+            if expiry_date <= production_date:
+                raise ValidationError({
+                    'expiry_date': 'Ngày hết hạn phải lớn hơn ngày sản xuất'
+                })
+
+#giá thuốc
+class PriceValidator:
+    MIN_PRICE = 0
+    MAX_PRICE = 9999999.99
+
+    def __call__(self, value):
+        errors = []
+        try:
+            float_value = float(value)
+        except (ValueError, TypeError):
+            errors.append("Giá phải là số")
+            raise ValidationError(errors)
+
+        if float_value < self.MIN_PRICE:
+            errors.append("Giá không được âm")
+
+        if float_value > self.MAX_PRICE:
+            errors.append(f"Giá không được quá {self.MAX_PRICE:,.2f}")
+
+        # Kiểm tra số chữ số thập phân
+        value_str = str(value)
+        if '.' in value_str:
+            decimals = len(value_str.split('.')[1])
+            if decimals > 2:
+                errors.append("Giá chỉ được tối đa 2 chữ số thập phân")
+
+        if errors:
+            raise ValidationError(errors)
+
+class MedicineDataValidator:
+    def __init__(self):
+        self.name_validator = MedicineNameValidator()
+        self.unit_validator = UnitValidator()
+        self.description_validator = DescriptionValidator()
+        self.stock_validator = StockValidator()
+        self.production_date_validator = ProductionDateValidator()
+        self.expiry_date_validator = ExpiryDateValidator()
+        self.date_range_validator = DateRangeValidator()
+        self.price_validator = PriceValidator()
+
+    def validate_field(self,field_name,value):
+        validators_map={
+            'name': self.name_validator,
+            'unit': self.unit_validator,
+            'description': self.description_validator,
+            'stock': self.stock_validator,
+            'production_date': self.production_date_validator,
+            'expiry_date': self.expiry_date_validator,
+            'price': self.price_validator,
+        }
+
+        validator = validators_map.get(field_name)
+        if validator:
+            validator(value)
+
+    def validate_object(self, data):
+        self.date_range_validator(data)
+
+
+# ========================== Prescription VALIDATORS ==============================
+class PrescriptionInstructionNotesValidator:
+    MAX_LENGTH = 1000
+
+    def __call__(self, value):
+        if not value:
+            return
+
+        errors = []
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Ghi chú không được quá {self.MAX_LENGTH}")
+
+        if has_dangerous_keywords(value):
+            errors.append("Ghi chú chứa từ khóa không hợp lệ ")
+
+        if has_xss_patterns(value):
+            errors.append("Ghi chú chứa nội dung không hợp lệ")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class PrescriptionDetailsValidator:
+    MIN_DETAILS = 1
+    MAX_DETAILS = 100
+
+    def __call__(self, value):
+        errors = {}
+
+        if not value:
+            raise ValidationError("Đơn thuốc phải có ít nhất 1 mặt hàng")
+
+        if len(value) < self.MIN_DETAILS:
+            raise ValidationError(f"Tối thiểu {self.MIN_DETAILS} mặt hàng")
+
+        if len(value) > self.MAX_DETAILS:
+            raise ValidationError(f"Tối đa {self.MAX_DETAILS} mặt hàng")
+
+        medicine_ids = []
+        for idx, detail in enumerate(value):
+            medicine = detail.get('medicine')
+
+            if not medicine:
+                errors[f'details[{idx}]'] = "Thuốc là bắt buộc"
+                continue
+
+            medicine_ids.append(medicine.id)
+
+        # Kiểm tra trùng
+        if len(medicine_ids) != len(set(medicine_ids)):
+            raise ValidationError("Không được thêm cùng 1 thuốc nhiều lần")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class PrescriptionDetailQuantityValidator:
+    MIN = 1
+    MAX = 10000
+    def __call__(self, value):
+        errors = []
+        if not isinstance(value, int):
+            errors.append("Số lượng phải là số nguyên")
+
+        if value < self.MIN:
+            errors.append(f"Số lượng tối thiểu là {self.MIN}")
+
+        if value > self.MAX:
+            errors.append(f"Số lượng tối đa là {self.MAX}")
+
+        if errors:
+            raise ValidationError(errors)
+
+#liều dùng
+class PrescriptionDetailDosageValidator:
+    MAX_LENGTH = 100
+
+    def __call__(self, value):
+        if not value:
+            raise ValidationError("Liều dùng là bắt buộc")
+
+        errors = []
+
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Liều dùng không được quá {self.MAX_LENGTH} ký tự")
+
+        if has_xss_patterns(value):
+            errors.append("Liều dùng chứa nội dung không hợp lệ")
+
+        if has_dangerous_keywords(value):
+            errors.append("Liều dùng chứa từ khóa không hợp lệ")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class PrescriptionDetailUnitPriceValidator:
+    MIN = 0
+    MAX = 9999999.99
+
+    def __call__(self, value):
+        errors = []
+
+        try:
+            float_value = float(value)
+        except (ValueError, TypeError):
+            errors.append("Giá phải là số")
+            raise ValidationError(errors)
+
+        if float_value < self.MIN:
+            errors.append("Giá không được âm")
+
+        if float_value > self.MAX:
+            errors.append(f"Giá không được quá {self.MAX:,.2f}")
+
+        value_str = str(value)
+        if '.' in value_str:
+            decimals = len(value_str.split('.')[1])
+            if decimals > 2:
+                errors.append("Giá chỉ được tối đa 2 chữ số thập phân")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class PrescriptionDetailMedicineStockValidator:
+    def __call__(self, medicine, quantity):
+        if not medicine:
+            raise ValidationError("Thuốc là bắt buộc")
+
+        # Refresh để lấy stock mới nhất
+        medicine.refresh_from_db()
+
+        if medicine.stock < quantity:
+            raise ValidationError(
+                f"Thuốc '{medicine.name}' không đủ! "
+                f"Yêu cầu {quantity}, còn {medicine.stock} {medicine.unit}."
+            )
+
+
+class PrescriptionDataValidator:
+    def __init__(self):
+        self.instruction_notes_validator = PrescriptionInstructionNotesValidator()
+        self.details_validator = PrescriptionDetailsValidator()
+        self.quantity_validator = PrescriptionDetailQuantityValidator()
+        self.dosage_validator = PrescriptionDetailDosageValidator()
+        self.unit_price_validator = PrescriptionDetailUnitPriceValidator()
+        self.medicine_stock_validator = PrescriptionDetailMedicineStockValidator()
+
+    def validate_notes(self, value):
+        self.instruction_notes_validator(value)
+
+    def validate_details(self, value):
+        self.details_validator(value)
+
+    def validate_quantity(self, value):
+        self.quantity_validator(value)
+
+    def validate_dosage(self, value):
+        self.dosage_validator(value)
+
+    def validate_unit_price(self, value):
+        self.unit_price_validator(value)
+
+    def validate_medicine_stock(self, medicine, quantity):
+        self.medicine_stock_validator(medicine, quantity)
+
+# ========================== MedicalRecord VALIDATORS ==============================
+class MedicalRecordDiagnosisValidator:
+    MIN_LENGTH = 5
+    MAX_LENGTH = 2000
+
+    def __call__(self, value):
+        if not value:
+            raise ValidationError(
+                "Chẩn đoán là bắt buộc"
+            )
+        errors = []
+        value = value.strip()
+
+        if len(value) < self.MIN_LENGTH:
+            errors.append(f"Chẩn đoán tối thiểu {self.MIN_LENGTH} ký tự")
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Chẩn đoán tối đa {self.MAX_LENGTH} ký tự")
+
+        if has_xss_patterns(value):
+            errors.append("Chẩn đoán chứa nội dung không hợp lệ")
+        if has_dangerous_keywords(value):
+            errors.append("Chẩn đoán chứa từ khóa nguy hiểm")
+
+        if errors:
+            raise ValidationError(errors)
+
+class MedicalRecordSymptomsValidator:
+    MIN_LENGTH = 5
+    MAX_LENGTH = 2000
+    def __call__(self, value):
+        if not value:
+            return
+        errors = []
+        if len(value) < self.MIN_LENGTH:
+            errors.append(f"Triệu chứng tối thiểu {self.MIN_LENGTH} ký tự")
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Triệu chứng tối đa {self.MAX_LENGTH} ký tự")
+
+        if has_xss_patterns(value):
+            errors.append("Chẩn đoán chứa nội dung không hợp lệ")
+        if has_dangerous_keywords(value):
+            errors.append("Chẩn đoán chứa từ khóa nguy hiểm")
+
+        if errors:
+            raise ValidationError(errors)
+
+class MedicalRecordNotesValidator:
+    MAX_LENGTH = 3000
+
+    def __call__(self, value):
+        if not value:
+            return
+        errors = []
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Ghi chú tối đa {self.MAX_LENGTH} ký tự")
+
+        if has_xss_patterns(value):
+            errors.append("Ghi chú chứa nội dung không hợp lệ")
+        if has_dangerous_keywords(value):
+            errors.append("Ghi chú chứa từ khóa nguy hiểm")
+
+        if errors:
+            raise ValidationError(errors)
+
+class MedicalRecordFollowUpDateValidator:
+    def __call__(self, value):
+        if not value:
+            return
+        errors = []
+        today = date.today()
+        if value <= today:
+            errors.append("Ngày tái khám phải sau ngày hiện tại")
+        if value > today + timedelta(days=365):
+            errors.append("Ngày tái khám không hợp lệ")
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class MedicalRecordCreatePermissionsValidator:
+    def __call__(self,appointment, user):
+        if appointment.doctor != user:
+            raise ValidationError("Bạn không phải là bác sĩ của lịch hẹn này")
+
+class MedicalRecordUpdatePermissionValidator:
+    def __call__(self, medical_record, user):
+         if medical_record.appointment.doctor != user:
+            raise ValidationError("Bạn không có quyền sửa bệnh án này")
+
+class MedicalRecordDataValidator:
+    def __init__(self):
+         self.diagnosis_validator = MedicalRecordDiagnosisValidator()
+         self.symptoms_validator = MedicalRecordSymptomsValidator()
+         self.medical_notes_validator = MedicalRecordNotesValidator()
+         self.follow_up_date_validator = MedicalRecordFollowUpDateValidator()
+         self.create_permission_validator = MedicalRecordCreatePermissionsValidator()
+         self.update_permission_validator = MedicalRecordUpdatePermissionValidator()
+
+    def validate_diagnosis(self, value):
+        self.diagnosis_validator(value)
+
+    def validate_symptoms(self, value):
+        self.symptoms_validator(value)
+
+    def validate_medical_notes(self, value):
+        self.medical_notes_validator(value)
+
+    def validate_follow_up_date(self, value):
+        self.follow_up_date_validator(value)
+
+    def validate_create_permission(self, appointment, user):
+        self.create_permission_validator(appointment, user)
+
+    def validate_update_permission(self, medical_record, user):
+        self.update_permission_validator(medical_record, user)

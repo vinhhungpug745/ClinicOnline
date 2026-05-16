@@ -225,8 +225,6 @@ genai.configure(
 
 _model = None
 
-_model = None
-
 def get_cached_model():
     global _model
     if _model is None:
