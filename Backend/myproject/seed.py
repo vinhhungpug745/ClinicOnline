@@ -2,12 +2,13 @@ import random
 from datetime import  timedelta, time
 from decimal import Decimal
 from django.utils import timezone
-
+from datetime import date
 import django, os
+
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 django.setup()
-from cliniconlineapi.models import User, StaffProfile, Specialty, ServiceNormal
-
+from cliniconlineapi.models import User, StaffProfile, Specialty, ServiceNormal, CustomerProfile, WorkDay, TimeSlot
 
 specialties_data = [
     {"name": "Nội tổng quát", "description": "Khám và điều trị các bệnh nội khoa tổng quát"},
@@ -99,6 +100,11 @@ for i, letter in enumerate(alphabet):
         user.role = User.Role.DOCTOR
         user.gender = genders[i % len(genders)]
         user.avatar = avaterDoctor[i % len(avaterDoctor)]
+        user.dob = date(
+            random.randint(1960, 1985),
+            random.randint(1, 12),
+            random.randint(1, 28)
+        )
         user.save()
 
         doctor_specialties = get_specialties_for_doctor(i, specialties)
@@ -112,6 +118,7 @@ for i, letter in enumerate(alphabet):
             bio=f"Bác sĩ Nguyễn Văn {letter} là chuyên gia với hơn {experience} năm kinh nghiệm trong lĩnh vực {specialty_names}. "
                 f"Với quá trình đào tạo bài bản và tận tâm trong công việc, bác sĩ đã trực tiếp thăm khám và điều trị cho hàng nghìn bệnh nhân. "
                 f"Bác sĩ luôn đặt sức khỏe và sự an toàn của người bệnh lên hàng đầu, mang đến dịch vụ y tế chất lượng cao và đáng tin cậy.",
+            price=random.randint(100000, 500000),
         )
 
         # Gán nhiều chuyên khoa

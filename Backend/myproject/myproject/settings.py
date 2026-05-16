@@ -85,7 +85,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'cliniconline',
         'USER': 'root',
-        'PASSWORD': '123456',
+        'PASSWORD': 'Abc123',
         'HOST': '' # mặc định localhost
     }
 }
