@@ -1,6 +1,6 @@
-import { View, Text, ScrollView, StyleSheet } from "react-native";
-import { Card, SegmentedButtons } from "react-native-paper";
-import React, { useEffect, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { ActivityIndicator, Card, SegmentedButtons } from "react-native-paper";
+import React, { useContext, useEffect, useState } from "react";
 import ListDropDown from "../../components/Appointment/ListDropDown";
 import TimeSlot from "../../components/Schedule/TimeSlot";
 import DaychipGroup from "../../components/Schedule/DayChipGroup";
@@ -10,6 +10,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetchPublic, fetchWithAuth } from "../../utils/apiHelper";
 import AppSnackbar from "../../components/AppSnackbar";
 import { formatDoctors, formatSlots } from "../../utils/format";
+import { useBooking } from "../../utils/contexts/BookingContext";
+import LoadingScreen from "../../components/LoadingScreen";
+import TimeShift from "../../components/Schedule/TimeShift";
+import { Calendar } from "react-native-calendars";
+import MyCalender from "../../components/Schedule/MyCalendar";
+import { MyUserContext } from "../../utils/contexts/MyUserContext";
 
 const SERVICES = [
     { id: "1", name: "Khám thường", description: "Khám lâm sàng và tư vấn điều trị" },
@@ -18,52 +24,8 @@ const SERVICES = [
     { id: "4", name: "Khám sức khỏe tổng quát", description: "Gói khám tổng quát cho mọi lứa tuổi" },
 ];
 
-// [
-//     {
-//         "date": "2026-04-28",
-//         "day_of_week": "Tuesday",
-//         "id": 1,
-//         "time_slots": [
-//             [Object],
-//             [Object],
-//             [Object]
-//         ]
-//     },
-//     {
-//         "date": "2026-04-29",
-//         "day_of_week": "Wednesday",
-//         "id": 3,
-//         "time_slots": [
-//             [Object],
-//             [Object],
-//             [Object]
-//         ]
-//     }
-// ]
 
-// [
-//     {
-//         "date": "2026-04-28", 
-//         "day_of_week": "Tuesday", 
-//         "id": 1, 
-//         "slots": {
-//             "afternoon": [Array], 
-//             "evening": [Array], 
-//             "morning": [Array]}
-//         }, 
-//     {
-//         "date": "2026-04-29", 
-//         "day_of_week": "Wednesday", 
-//         "id": 3, 
-//         "slots": {
-//             "afternoon": [Array], 
-//             "evening": [Array], 
-//             "morning": [Array]
-//         }
-//     }
-// ]
-
-const SectionLabel = ({ text }) => (
+export const SectionLabel = ({ text }) => (
     <View style={styles.sectionLabelRow}>
         <View style={styles.sectionLabelDot} />
         <Text style={styles.sectionLabel}>{text}</Text>
@@ -75,17 +37,19 @@ const SectionLabel = ({ text }) => (
     { "avatar": "https://res.cloudinary.com/dkdvg8jix/image/upload/v1777428597/smiling-young-female-doctor-wearing-medical-robe-stethoscope-with-glasses-isolated_141793-68741_xsg6ev", "email": "bsnguyenvans@gmail.com", "first_name": "S", "gender": "male", "id": 20, "last_name": "Nguyễn Văn", "phone": "0918111018" },
     { "avatar": "https://res.cloudinary.com/dkdvg8jix/image/upload/v1777428575/male-doctor-with-face-mask-portrait_53876-105124_exqkyo", "email": "bsnguyenvant@gmail.com", "first_name": "T", "gender": "female", "id": 21, "last_name": "Nguyễn Văn", "phone": "0919111019" }]
 
-const Step1Schedule = ({ data, updateBooking }) => {
+const Step1Schedule = ({ doctor, specialty }) => {
     const [specialies, setSpecialies] = useState([]);
-    const [DOCTORS, setDOCTORS] = useState([]);
+    const [doctors, setDoctors] = useState([]);
     const [workDay, setWorkDay] = useState([])
     const [snackbar, setSnackbar] = useState({});
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-
-
-
-    const loadSpecialty = async () => {
+    const { updateBooking, updateBulk, bookingData, resetAll } = useBooking();
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const { user } = useContext(MyUserContext);
+    const loadSpecialty = async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         await fetchWithAuth(
             endpoints.specialty,
             (data) => {
@@ -96,8 +60,10 @@ const Step1Schedule = ({ data, updateBooking }) => {
                 setSpecialies(prev => [...prev, ...data.results]);
             },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
-            { page }
+            { page },
         );
+        if (isRefresh) setRefreshing(false);
+        setLoading(false);
     };
 
     const LoadWorkDayDoctor = async (id) => {
@@ -114,42 +80,70 @@ const Step1Schedule = ({ data, updateBooking }) => {
         await fetchWithAuth(
             endpoints.doctorspecialty(specialtyId),
             (data) => {
-                setDOCTORS(formatDoctors(data))
+                setDoctors(formatDoctors(data))
             },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
         )
     };
 
     useEffect(() => {
-        if (page == null) return;
-        loadSpecialty();
-    }, [page]);
+        if (user) {
+            if (page == null) return;
+            if (doctor && specialty) {
+                updateBulk({
+                    doctor: formatDoctors([doctor])[0],
+                    specialty: specialty
+                });
+                LoadWorkDayDoctor(doctor?.id);
+            } else loadSpecialty();
+        }
+    }, [page, doctor, specialty]);
 
-console.log("data.slots:", data.slots);
-console.log("data.shift:", data.shift);
-console.log("data.id_schedule:", data.id_schedule);
-console.log("workDay found:", workDay.find(d => d.id === data.id_schedule));
+    useEffect(() => {
+        if(user){
+            if (!doctor && specialty)
+                if (bookingData.specialty) LoadWorkDayDoctor(bookingData.doctor?.id);
+        }
+    }, [doctor, specialty]);
+
+    if (loading) return <LoadingScreen text="Đang tải thông tin bác sĩ và lịch làm việc..." />;
+
+    const specialiesWithSelected = bookingData.specialty
+        ? [bookingData.specialty, ...specialies.filter(s => s.id !== bookingData.specialty.id)]
+        : specialies;
+
+    const doctorsWithSelected = bookingData.doctor
+        ? [bookingData.doctor, ...doctors.filter(d => d.id !== bookingData.doctor.id)]
+        : doctors;
+
+    console.log(bookingData);
 
     return (
         <View>
-
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={() => {
+                            loadSpecialty(true);
+                            resetAll();
+                        }}
+                        colors={[COLORS.primary]}
+                        tintColor={COLORS.primary}
+                    />
+                }
             >
                 <SectionLabel text="Chọn chuyên khoa" />
                 <ListDropDown
                     title="Chọn chuyên khoa"
-                    value={data.specialty}
+                    value={bookingData.specialty}
                     icon="stethoscope"
-                    data={specialies}
+                    data={specialiesWithSelected}
                     onSelect={(item) => {
-                        updateBooking(
-                            "bulk", {
-                            specialty: item,
-                            doctor: null
-                        }
-                        )
+                        updateBulk({ specialty: item, doctor: null })
                         loadDoctorsBySpecialty(item.id);
                     }}
                     setPage={hasMore ? setPage : null}
@@ -158,88 +152,76 @@ console.log("workDay found:", workDay.find(d => d.id === data.id_schedule));
                 <SectionLabel text="Chọn bác sĩ" />
                 <ListDropDown
                     title="Chọn bác sĩ"
-                    value={data.doctor}
+                    value={bookingData.doctor}
                     icon="account-tie"
-                    data={DOCTORS}
+                    data={doctorsWithSelected}
                     onSelect={(item) => {
-                        updateBooking("doctor", item)
-                        LoadWorkDayDoctor(item.id)
+                        updateBooking("doctor", item);
+                        LoadWorkDayDoctor(item.id);
                     }}
                 />
 
                 <SectionLabel text="Chọn dịch vụ" />
                 <ListDropDown
                     title="Chọn dịch vụ"
-                    value={data.serviceNormal}
+                    value={bookingData.serviceNormal}
                     icon="medical-bag"
                     data={SERVICES}
                     onSelect={(item) => updateBooking("serviceNormal", item)}
                 />
 
-                {data.doctor && (
-                    <>
-                        <SectionLabel text="Chọn ngày trong tuần" />
-                        <Card style={styles.card}>
-                            <Card.Content>
-                                <DaychipGroup
-                                    selected={data.day}
-                                    onToggle={(day) => {
-                                        updateBooking("bulk", {
-                                            day: day,
-                                            shift: "morning",
-                                            id_schedule: workDay[day]?.id,
-                                            date: workDay[day]?.date,
-                                            slots: [],
-                                        });
-                                    }}
-                                    DAYS={(workDay.map(day => day.day_of_week))}
-                                    WORKDAYS={workDay.map(d => d.date)}
-                                />
-                            </Card.Content>
-                        </Card>
+                {bookingData.doctor && (
+                    workDay.length > 0 ? (
+                        <>
+                            <SectionLabel text="Chọn ngày trong tuần" />
+                            <MyCalender
+                                workDays={workDay}
+                                selectedDay={bookingData.date}
+                                onSelectDay={(wd) => {
+                                    updateBulk({
+                                        day: wd.day_of_week,
+                                        shift: "morning",
+                                        id_schedule: wd?.id,
+                                        date: wd.date,
+                                        slots: []
+                                    });
+                                }} />
+                            <SectionLabel text="Chọn ca làm việc" />
+                            <TimeShift shift={bookingData.shift} updateBulk={updateBulk} />
 
-                        <SectionLabel text="Chọn ca làm việc" />
-                        <Card style={styles.card}>
-                            <Card.Content>
-                                <SegmentedButtons
-                                    value={data.shift}
-                                    onValueChange={(value) => {
-                                        updateBooking("shift", value);
-                                        updateBooking("slots", []);
-                                    }}
-                                    style={styles.segmented}
-                                    theme={{
-                                        colors: {
-                                            secondaryContainer: COLORS.primary,
-                                            onSecondaryContainer: '#ffffff',
-                                            outline: '#e2e8f0',
-                                        },
-                                    }}
-                                    buttons={[
-                                        { value: 'morning', label: '🌤 Sáng', style: styles.segBtn },
-                                        { value: 'afternoon', label: '☀️ Chiều', style: styles.segBtn },
-                                        { value: 'evening', label: '🌙 Tối', style: styles.segBtn },
-                                    ]}
-                                />
-                            </Card.Content>
-                        </Card>
 
-                        <SectionLabel text="Chọn giờ làm việc" />
-                        <Card style={[styles.card, { marginBottom: 8 }]}>
-                            <Card.Content>
-                                <TimeSlot
-                                    shift={data.shift}
-                                    selectedSlots={data.slots}
-                                    onSlotsChange={(slots) => updateBooking("slots", slots)}
-                                    SLOTS={workDay.find(d => d.id === data.id_schedule)?.slots ?? { morning: [], afternoon: [], evening: [] }}
-                                    multiple={false}
-                                />
-                            </Card.Content>
-                        </Card>
-                    </>
+
+                            <SectionLabel text="Chọn giờ làm việc" />
+                            <Card style={[styles.card, { marginBottom: 8 }]}>
+                                <Card.Content>
+                                    <TimeSlot
+                                        shift={bookingData.shift}
+                                        selectedSlots={bookingData.slots}
+                                        onSlotsChange={(slots) => updateBooking("slots", slots)}
+                                        SLOTS={workDay.find(d => d.id === bookingData.id_schedule)?.slots ?? { morning: [], afternoon: [], evening: [] }}
+                                        multiple={false}
+                                    />
+                                </Card.Content>
+                            </Card>
+                        </>
+                    ) : (
+                        <View style={{
+                            flex: 1,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            paddingVertical: 36,
+                        }}>
+                            <Text style={{
+                                textAlign: "center",
+                                color: "#888",
+                                fontSize: 15,
+                                lineHeight: 22
+                            }}>
+                                Bác sĩ hiện tại chưa có lịch khám, vui lòng quay lại sau hoặc chọn bác sĩ khác cùng khoa!
+                            </Text>
+                        </View>
+                    )
                 )}
-
-
 
             </ScrollView>
             <AppSnackbar
@@ -250,7 +232,6 @@ console.log("workDay found:", workDay.find(d => d.id === data.id_schedule));
                 onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
             />
         </View>
-
     );
 };
 

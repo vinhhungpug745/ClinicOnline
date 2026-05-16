@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary',
+    'cloudinary_storage',
     'cliniconlineapi.apps.CliniconlineapiConfig',
     'rest_framework',
     'drf_yasg',
@@ -54,6 +56,8 @@ REST_FRAMEWORK = {
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = "470188811487-0ucu4tusatgugs20ianq3q3su1og2g8v.apps.googleusercontent.com"
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = "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"
 
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -159,3 +163,6 @@ STATIC_URL = 'static/'
 
 CLIENT_ID="0fDRceS0qSEiEIVUvcXtzgOSZ3guI3GsP6IjSoP7"
 CLIENT_SECRET="hwU1KU36A5RC1u0w9b8ipShwKqYVGuaol4ijEQTpdKzH6FQrHiwkno5LWgiZA1jq9omjBRPGzQf2YTPLGimvRzJxjq4FxVJ1FU652tHTZRZS3WVPQMBcGdvtBZw9WIrw"
+
+GEMINI_API_KEY  = "AIzaSyA5bQLWsYX4KTJ7fC0I-SDPm5ibYkkDrqs"
+PROJECT_NAME ="projects/224624664431"

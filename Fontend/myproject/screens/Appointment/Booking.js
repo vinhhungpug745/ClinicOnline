@@ -1,6 +1,6 @@
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { Button } from "react-native-paper";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import BookingHeader from "../../components/Appointment/Bookingheader";
 import Step1Schedule from "../Appointment/Step1Schedule"
 import Step2Profile from "./Step2Profile";
@@ -10,90 +10,51 @@ import { MyUserContext } from "../../utils/contexts/MyUserContext";
 import { createWithAuth, fetchWithAuth } from "../../utils/apiHelper";
 import { endpoints } from "../../configs/Apis";
 import AppSnackbar from "../../components/AppSnackbar";
-
-
-// {
-//     "patient": {
-//         "id": 22,
-//         "name": "NguyenQuoc Huy",
-//         "gender": "male",
-//         "phone": "0999999999",
-//         "email": "",
-//         "profile": {
-//             "blood_group": "A+",
-//             "height": 170,
-//             "weight": 36,
-//             "allergy_history": "Dị ứng phấn hoa",
-//             "insurance_number": "BHYT123456",
-//             "insurance_expiry_date": "2026-09-08"
-//         }
-//     },
-//     "doctor": {
-//         "id": 21,
-//         "name": "Nguyễn Văn T",
-//         "email": "bsnguyenvant@gmail.com",
-//         "phone": "0919111019"
-//     },
-//     "specialty": {
-//         "id": 20,
-//         "name": "Phục hồi chức năng"
-//     },
-//     "serviceNormal": {
-//         "id": "1",
-//         "name": "Khám thường"
-//     },
-//     "schedule": {
-//         "id_schedule": 5,
-//         "date": "2026-05-05",
-//         "shift": "evening",
-//         "slots": {
-//             "id": 15,
-//             "start": "19:00",
-//             "end": "20:00"
-//         }
-//     }
-// }
+import BookingProvider, { useBooking } from "../../utils/contexts/BookingContext";
+import { RefreshControl } from "react-native";
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import AppButton from "../../components/AppButton";
+import { useAlert } from "../../utils/contexts/AlertContext";
 
 
 const Booking = () => {
+    const { user } = useContext(MyUserContext);
+
+    return (
+        <BookingProvider user={user}>
+            <BookingContent />
+        </BookingProvider>
+    );
+};
+
+const BookingContent = () => {
+    const navigation = useNavigation();
     const [step, setStep] = useState(0);
     const { user } = useContext(MyUserContext);
+    const [loadingForm, setLoadingForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [snackbar, setSnackbar] = useState({});
     const [success, setSuccess] = useState(false);
-    const [bookingData, setBookingData] = useState({
-        shift: "morning",
-        slots: [],
-        patient: user
-    });
+    const { showAlert, showAlertAuth ,showAlertAuth403} = useAlert();
+    const { bookingData, resetAll, updateBooking } = useBooking();
+    const route = useRoute();
 
-    const updateBooking = (key, value) => {
-        if (key === "bulk") {
-            setBookingData(prev => ({ ...prev, ...value }));
-        } else {
-            setBookingData(prev => ({ ...prev, [key]: value }));
-        }
-    }
+    useEffect(() => {
+        if (user) updateBooking("patient", user);
+    }, [user]);
 
-    const updatePatient = (key, value) => {
-        setBookingData(prev => ({
-            ...prev,
-            patient: { ...prev.patient, [key]: value },
-        }));
-    };
-
-    const updateProfile = (key, value) => {
-        setBookingData(prev => ({
-            ...prev,
-            patient: {
-                ...prev.patient,
-                profile: { ...prev.patient.profile, [key]: value }
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) {
+                showAlertAuth({ lable: "Đặt lịch làm việc" })
+                setLoading(false)
+                return
             }
-        }));
-    };
+        }, [])
+    );
 
     const canGoNext = () => {
-        if (step === 0) return bookingData.specialty && bookingData.doctor && bookingData.serviceNormal && bookingData.slots;
+        if (step === 0) return bookingData.doctor && bookingData.serviceNormal && Object.keys(bookingData.slots).length > 0;
         if (step === 1) return bookingData.patient.last_name && bookingData.patient.first_name;
         if (step === 2) return true;
         return false;
@@ -101,9 +62,9 @@ const Booking = () => {
 
     const renderStep = () => {
         switch (step) {
-            case 0: return <Step1Schedule data={bookingData} updateBooking={updateBooking} />;
-            case 1: return <Step2Profile data={bookingData} updatePatient={updatePatient} updateProfile={updateProfile} />;
-            case 2: return <Step3Confirm data={bookingData} />;
+            case 0: return <Step1Schedule doctor={route.params?.doctor} specialty={route.params?.specialty} />;
+            case 1: return <Step2Profile />;
+            case 2: return <Step3Confirm />;
         }
     };
 
@@ -113,7 +74,7 @@ const Booking = () => {
             doctor: data.doctor.id,
             time_slot: data.slots.id,
             reason: data.patient.reason,
-            symptoms: data.patient.reason,
+            symptoms: data.patient.symptoms,
             serviceNormal: parseInt(data.serviceNormal.id),
         };
     };
@@ -128,7 +89,7 @@ const Booking = () => {
         try {
             if (!validate(bookingData)) {
                 setSnackbar({ visible: true, message: "Vui lòng điền đầy đủ thông tin!", type: 'error' });
-                return; // ← return trong finally vẫn chạy setLoading(false)
+                return;
             }
 
             await createWithAuth(
@@ -137,100 +98,61 @@ const Booking = () => {
                 (data) => {
                     setSnackbar({ visible: true, message: "Đặt lịch thành công!", type: 'success' });
                     setSuccess(true);
-                    setBookingData({ shift: "morning", slots: [], patient: user });
+                    resetAll();
+                    setStep(0);
                 },
                 (type, msg) => {
                     setSnackbar({ visible: true, message: msg, type: 'error' });
                 }
             );
         } finally {
-            setLoading(false); // ← luôn chạy dù thành công, thất bại, hay validate fail
+            setLoading(false);
         }
     };
 
-    useEffect(() => {
-        setBookingData(prev => ({
-            ...prev,
-            patient: user,
-        }));
-    }, [user]);
-
     return (
-        <View style={styles.screen}>
-            <BookingHeader step={step} />
 
+        <View style={styles.screen}>
             <View style={{ flex: 1 }}>
-                {renderStep()}
+                <BookingHeader step={step} onBack={() => {
+                    navigation.goBack();
+                }} />
+
+                <View style={{ flex: 1 }}>
+                    {renderStep()}
+                </View>
             </View>
 
             {step < 3 && (
-                <View style={styles.footer}>
+                <View>
                     {step === 2 ? (
                         !success && (
-                            <>
-                                <Button
-                                    mode="contained"
-                                    disabled={!canGoNext() || loading}
-                                    loading={loading}
-                                    onPress={() => appointment()}
-                                    style={styles.btnPrimary}
-                                    contentStyle={styles.btnContent}
-                                    labelStyle={styles.btnLabel}
-                                >
-                                    Xác nhận đặt lịch
-                                </Button>
-                            </>
+                            <AppButton
+                                type="confirm"
+                                label="Xác nhận đặt lịch"
+                                disabled={!canGoNext() || loading}
+                                loading={loading}
+                                onPress={() => appointment()}
+                            />
                         )) : (
-                        <>
-                            <Button
-                                mode="contained"
-                                disabled={!canGoNext()}
-                                onPress={() => {
-                                    console.log(bookingData.slots)
-                                    setStep(prev => prev + 1)
-                                }}
-                                style={styles.btnPrimary}
-                                contentStyle={styles.btnContent}
-                                labelStyle={styles.btnLabel}
-                            >
-                                Tiếp theo
-                            </Button>
-                        </>
+                        <AppButton
+                            type="next"
+                            disabled={!canGoNext()}
+                            onPress={() => {
+                                setStep(prev => prev + 1);
+                                console.log(bookingData);
+                            }}
+                        />
                     )}
                     {step > 0 && (
-                        <>
-                            <Button
-                                mode="outlined"
-                                disabled={step === 0}
-                                onPress={() => setStep(prev => prev - 1)}
-                                style={styles.btnOutlined}
-                                contentStyle={styles.btnContent}
-                                labelStyle={styles.btnLabelOutlined}
-                            >
-                                Quay lại
-                            </Button>
-                        </>
+                        <AppButton
+                            type="back"
+                            disabled={step === 0}
+                            onPress={() => setStep(prev => prev - 1)}
+                        />
                     )}
-
-                    {user && step === 1 && (
-                        <>
-                            <Button
-                                mode="outlined"
-                                disabled={step === 0}
-                                onPress={() => console.log("change profile")}
-                                style={styles.btnOutlined}
-                                contentStyle={styles.btnContent}
-                                labelStyle={styles.btnLabelOutlined}
-                            >
-                                Cập nhật sơ yếu lí lịch
-                            </Button>
-                        </>
-                    )}
-
-
                 </View>
             )}
-
             <AppSnackbar
                 visible={snackbar.visible}
                 message={snackbar.message}
@@ -246,14 +168,6 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: COLORS.bg,
-    },
-    footer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: COLORS.white,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
-        gap: 8,
     },
     btnPrimary: {
         borderRadius: 12,

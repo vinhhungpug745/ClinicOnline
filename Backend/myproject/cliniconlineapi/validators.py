@@ -27,11 +27,13 @@ class PhoneNumberValidator(validators.RegexValidator):
 
 
 class NameValidator:
-    def __init__(self, min_length=2, max_length=50):
+    def __init__(self, min_length=2, max_length=50,
+                    min_message=None,
+                    max_message=None,):
         self.validators = [
             NameRegexValidator(),
-            MinLengthValidator(min_length),
-            MaxLengthValidator(max_length),
+            MinLengthValidator(min_length,min_message),
+            MaxLengthValidator(max_length, max_message),
         ]
 
     def __call__(self, value):

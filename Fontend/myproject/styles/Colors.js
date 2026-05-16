@@ -1,4 +1,20 @@
 const COLORS = {
+    blue: "#1976D2",
+    blueDark: "#1565C0",
+    blueLight: "#E3F2FD",
+    blueMid: "#90CAF9",
+    text: "#1E293B",
+    textMuted: "#64748B",
+    textLight: "#94A3B8",
+    success: "#10B981",
+    successLight: "#D1FAE5",
+    error: "#EF4444",
+    warning: "#F59E0B",
+    bg: "#F1F5F9",
+    white: "#FFFFFF",
+    border: "#E2E8F0",
+    divider: "#F1F5F9",
+
     // ─── Primary (Xanh dương y tế) ───────────────────────
     primary: "#1976D2",          // Xanh đậm - màu chủ đạo
     primaryDark: "#1565C0",      // Hover / pressed

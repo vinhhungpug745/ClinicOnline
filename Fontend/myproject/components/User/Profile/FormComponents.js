@@ -20,15 +20,30 @@ export const Field = ({ label, required, children }) => (
     </View>
 );
 
-export const StyledInput = ({ style, ...props }) => (
-    <TextInput
-        style={[styles.input, style]}
-        placeholderTextColor={COLORS.textLight}
-        {...props}
-    />
+export const StyledInput = ({ style, error, errorMessage, ...props }) => (
+    <View>
+        <TextInput
+            style={[styles.input, style, error && styles.inputError]}
+            placeholderTextColor={COLORS.textLight}
+            {...props}
+        />
+        {error && errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
+    </View>
 );
 
 const styles = StyleSheet.create({
+    inputError: {
+        borderColor: COLORS.error,
+        borderWidth: 1,
+    },
+    errorText: {
+        color: COLORS.error,
+        fontSize: 12,
+        marginTop: 4,
+        marginLeft: 4,
+    },
     sectionRow: {
         flexDirection: 'row',
         alignItems: 'center',

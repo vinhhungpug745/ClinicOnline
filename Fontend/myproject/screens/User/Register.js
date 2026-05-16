@@ -6,9 +6,10 @@ import { Button, HelperText, Icon } from "react-native-paper";
 import * as ImagePicker from 'expo-image-picker';
 import Apis, { endpoints } from "../../configs/Apis";
 import { createPublic } from "../../utils/apiHelper";
-import AppSnackbar from "../../components/AppSnackbar";
 import AppButton from "../../components/AppButton";
-
+import { useSnackbar } from "../../utils/contexts/SnackBarContext";
+import AppHeader from "../../components/AppHeader";
+import COLORS from "../../styles/Colors";
 
 const Register = ({ navigation }) => {
     const [user, setUser] = useState({
@@ -19,8 +20,7 @@ const Register = ({ navigation }) => {
         phone: '',
         email: '',
     });
-    const [snackbar, setSnackbar] = useState({});
-
+    const { showSnackbar } = useSnackbar();
     const [loading, setLoading] = useState(false);
 
     const info = [
@@ -74,9 +74,20 @@ const Register = ({ navigation }) => {
             alert("Permissions denied!");
         } else {
             const result =
-                await ImagePicker.launchImageLibraryAsync();
-            if (!result.canceled)
-                setUser({ ...user, "avatar": result.assets[0] });
+                await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    quality: 0.3,
+                    allowsEditing: true,
+                    aspect: [1,1],
+                });
+            if (!result.canceled) {
+                const asset = result.assets[0];
+                if (asset.fileSize > 5 * 1024 * 1024) {
+                    showSnackbar("Ảnh quá lớn!", "Vui lòng chọn ảnh dưới 5MB", "warning");
+                    return;
+                }
+                setUser({ ...user, avatar: asset });
+            }
         }
     }
 
@@ -126,7 +137,6 @@ const Register = ({ navigation }) => {
         const err = validate(user);
 
         setErrors(err);
-
         if (Object.keys(err).length === 0) {
             setLoading(true);
 
@@ -140,17 +150,18 @@ const Register = ({ navigation }) => {
                         const last_name = parts.join(" ");
                         formData.append("first_name", first_name);
                         formData.append("last_name", last_name);
-                    } else if (key === "avatar" && user[key]) {
+                    } else if (key === "avatar") {
                         formData.append("avatar", {
                             uri: user[key].uri,
-                            name: user[key].fileName || `avatar.${user[key].uri.split('.').pop()}`,
-                            type: user[key].type || 'image/jpeg',
+                            name: user[key].fileName,
+                            type: 'image/jpeg',
                         });
                     } else {
                         formData.append(key, user[key]);
                     }
                 }
             }
+
 
             await createPublic(
                 endpoints.register,
@@ -163,134 +174,133 @@ const Register = ({ navigation }) => {
                 (type, msg, errData) => {
                     if (type === "client") {
                         setErrors(errData || {});
-                        setSnackbar({ visible: true, message: "Đăng ký thất bại!", sub: msg, type: 'error' });
+                        showSnackbar("Đăng ký thất bại!", "error", msg);
                     } else if (type === "server") {
-                        setSnackbar({ visible: true, message: "Lỗi máy chủ!", sub: msg, type: 'error' });
+                        showSnackbar("Lỗi máy chủ!", msg, "error");
                     } else {
-                        setSnackbar({ visible: true, message: "Mất kết nối!", sub: msg, type: 'error' });
+                        showSnackbar("Mất kết nối!", msg, "error");
                     }
                 },
+                { 'Content-Type': 'multipart/form-data' }, null,
                 setLoading
             );
         };
+        setLoading(false);
     }
-    
+
     return (
         <View>
-        <ScrollView style={{ marginTop: 100, paddingHorizontal: 28 }}>
-            <Text style={{ fontSize: 24, fontWeight: '600', marginBottom: 30 }}>Đăng ký tài khoản</Text>
+            <AppHeader titles="Đăng ký tài khoản" onBack={() => {
+                navigation.goBack();
+            }}>
 
-            <InputField list={infoWithError.slice(0, 2)} user={user} setUser={setUser} setErrors={setErrors} />
-            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 12 }}>
-                <View style={{ flex: 1 }}>
-                    <InputItem
-                        label="Số điện thoại"
-                        icon="phone"
-                        value={user["phone"]}
-                        onChangeText={(v) => {
-                            setUser({ ...user, ["phone"]: v })
-                            setErrors(prev => {
-                                const newErrors = { ...prev };
-                                delete newErrors["phone"];
-                                return newErrors;
-                            });
-                        }}
-                        placeholder="Số điện thoại"
-                        secureText={false}
-                        inputProps={{
-                            keyboardType: 'phone-pad',
-                            autoCapitalize: 'none',
-                            autoComplete: 'tel',
-                        }}
-                    />
+            </AppHeader>
+            <ScrollView style={{ paddingHorizontal: 28 ,paddingTop: 36, backgroundColor: COLORS.bg}}>
 
-                    <HelperText type="error" visible={!!errors?.phone}>
-                        {errors?.phone}
-                    </HelperText>
+                <InputField list={infoWithError.slice(0, 2)} user={user} setUser={setUser} setErrors={setErrors} />
+                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 12 }}>
+                    <View style={{ flex: 1 }}>
+                        <InputItem
+                            label="Số điện thoại"
+                            icon="phone"
+                            value={user["phone"]}
+                            onChangeText={(v) => {
+                                setUser({ ...user, ["phone"]: v })
+                                setErrors(prev => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors["phone"];
+                                    return newErrors;
+                                });
+                            }}
+                            placeholder="Số điện thoại"
+                            secureText={false}
+                            inputProps={{
+                                keyboardType: 'phone-pad',
+                                autoCapitalize: 'none',
+                                autoComplete: 'tel',
+                            }}
+                        />
+
+                        <HelperText type="error" visible={errors?.phone !== undefined}>
+                            {errors?.phone}
+                        </HelperText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <InputItem style={{ flex: 1 }}
+                            label="Địa chỉ email"
+                            icon="email"
+                            value={user["email"]}
+                            onChangeText={(v) => {
+                                setUser({ ...user, ["email"]: v })
+                                setErrors(prev => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors["email"];
+                                    return newErrors;
+                                });
+                            }}
+                            placeholder="Địa chỉ email"
+                            secureText={false}
+                            inputProps={{
+                                keyboardType: 'email-address',
+                                autoCapitalize: 'none',
+                                autoComplete: 'email',
+                            }}
+                        />
+                        <HelperText type="error" visible={errors?.email !== undefined}>
+                            {errors?.email}
+                        </HelperText>
+                    </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                    <InputItem style={{ flex: 1 }}
-                        label="Địa chỉ email"
-                        icon="email"
-                        value={user["email"]}
-                        onChangeText={(v) => {
-                            setUser({ ...user, ["email"]: v })
-                            setErrors(prev => {
-                                const newErrors = { ...prev };
-                                delete newErrors["email"];
-                                return newErrors;
-                            });
-                        }}
-                        placeholder="Địa chỉ email"
-                        secureText={false}
-                        inputProps={{
-                            keyboardType: 'email-address',
-                            autoCapitalize: 'none',
-                            autoComplete: 'email',
-                        }}
-                    />
-                    <HelperText type="error" visible={!!errors?.email}>
-                        {errors?.email}
-                    </HelperText>
+                <InputField list={infoWithError.slice(2)} user={user} setUser={setUser} setErrors={setErrors} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <TouchableOpacity onPress={pickImage} style={{
+                        alignSelf: 'flex-start',
+                        fontSize: 14,
+                        width: '60%',
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 14,
+                        backgroundColor: '#e0e0e8',
+                        marginTop: 12,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6,
+                    }}
+                    >
+                        <Text style={{ color: '#000000' }}>Chọn ảnh đại diện</Text>
+                        <Icon
+                            source="camera"
+                            size={20}
+                        />
+                    </TouchableOpacity>
+
+                    {user.avatar && <Image source={{ uri: user.avatar.uri }} style={{ width: 100, height: 100, marginTop: 12, borderColor: '#2e2d2d', borderWidth: 1, borderRadius: 50 }} />}
                 </View>
-            </View>
-            <InputField list={infoWithError.slice(2)} user={user} setUser={setUser} setErrors={setErrors} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <TouchableOpacity onPress={pickImage} style={{
-                    alignSelf: 'flex-start',
-                    fontSize: 14,
-                    width: '60%',
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    borderRadius: 14,
-                    backgroundColor: '#e0e0e8',
-                    marginTop: 12,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 6,
-                }}
-                >
-                    <Text style={{ color: '#000000' }}>Chọn ảnh đại diện</Text>
-                    <Icon
-                        source="camera"
-                        size={20}
-                    />
-                </TouchableOpacity>
 
-                {user.avatar && <Image source={{ uri: user.avatar.uri }} style={{ width: 100, height: 100, marginTop: 12, borderColor: '#2e2d2d', borderWidth: 1, borderRadius: 50 }} />}
-            </View>
+                <View style={{ marginTop: 40 }}>
+                    <AppButton loading={loading} type="register" icon="account-plus" onPress={register} />
+                </View>
 
-            <View style={{ marginTop: 40 }}>
-                <AppButton loading={loading} type="register" icon="account-plus" onPress={register}/>
-            </View>
+                <Text style={{ marginVertical: 20, textAlign: 'center', color: '#a4a4ad' }}>------ Hoặc đăng ký bằng ------</Text>
 
-            <Text style={{ marginVertical: 20, textAlign: 'center', color: '#a4a4ad' }}>------ Hoặc đăng ký bằng ------</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Button style={Mystyles.btnSocial} icon="google" mode="contained" onPress={() => console.log('Pressed')}>
+                        Google
+                    </Button>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Button style={Mystyles.btnSocial} icon="google" mode="contained" onPress={() => console.log('Pressed')}>
-                    Google
-                </Button>
+                    <Button style={Mystyles.btnSocial} icon="facebook" mode="contained" onPress={() => console.log('Pressed')}>
+                        Facebook
+                    </Button>
+                </View>
 
-                <Button style={Mystyles.btnSocial} icon="facebook" mode="contained" onPress={() => console.log('Pressed')}>
-                    Facebook
-                </Button>
-            </View>
-
-            <View style={{ marginTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Text style={{ color: '#8a8a9a' }}>Bạn đã có tài khoản?</Text>
-                <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-                    <Text style={{ color: '#000000' }}>Đăng nhập</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
-        <AppSnackbar
-                visible={snackbar.visible}
-                message={snackbar.message}
-                sub={snackbar.sub}
-                type={snackbar.type}
-                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
-            />
+                <View style={{ marginTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Text style={{ color: '#8a8a9a' }}>Bạn đã có tài khoản?</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+                        <Text style={{ color: '#000000' }}>Đăng nhập</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
         </View>
     );
 

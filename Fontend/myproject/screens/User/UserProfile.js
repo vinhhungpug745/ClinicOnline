@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { use, useState } from 'react';
 import {
     View,
     ScrollView,
@@ -24,14 +24,16 @@ import AppSnackbar from '../../components/AppSnackbar';
 import * as SecureStore from 'expo-secure-store';
 import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSnackbar } from '../../utils/contexts/SnackBarContext';
+import { TYPE_INFORMATION } from '../../utils/mapping';
 
 const MENU_SECTIONS = [
     {
         title: 'Điều khoản & quy định',
         items: [
-            { id: 'terms', icon: 'shield-check-outline', label: 'Quy định sử dụng', iconBg: '#E1F5EE', iconColor: '#0F6E56' },
-            { id: 'privacy', icon: 'lock-outline', label: 'Chính sách bảo mật', iconBg: '#EDE7F6', iconColor: '#6200EA' },
-            { id: 'service', icon: 'file-document-outline', label: 'Điều khoản dịch vụ', iconBg: '#FFEBEE', iconColor: '#C62828' },
+            { id: 'terms', icon: 'shield-check-outline', label: 'Quy định sử dụng', iconBg: '#E1F5EE', iconColor: '#0F6E56' ,type: TYPE_INFORMATION.RULE},
+            { id: 'privacy', icon: 'lock-outline', label: 'Chính sách bảo mật', iconBg: '#EDE7F6', iconColor: '#6200EA', type: TYPE_INFORMATION.SECURITY },
+            { id: 'service', icon: 'file-document-outline', label: 'Điều khoản dịch vụ', iconBg: '#FFEBEE', iconColor: '#C62828', type: TYPE_INFORMATION.TERMSOFSERVICE },
         ],
     },
     {
@@ -53,8 +55,9 @@ const MENU_SECTIONS = [
 const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
     const theme = useTheme();
     const { user, dispatch } = React.useContext(MyUserContext);
-    const [snackbar, setSnackbar] = useState({});
     const [loading, setLoading] = useState(false);
+    const { showSnackbar } = useSnackbar();
+
     const handleLogout = async () => {
         const token = await AsyncStorage.getItem("access_token");
         await createPublic(
@@ -64,8 +67,8 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
                 client_id: CLIENT_ID_APP,
                 client_secret: CLIENT_SECRET_APP,
             },
-            () => { },
-            (err) => setSnackbar({ visible: true, message: err, type: 'error' }),
+            () => {showSnackbar('Đăng xuất thành công', 'success');},
+            (err) => showSnackbar(err, 'error', 'Đăng xuất thất bại'),
             {},
             async () => {
                 await SecureStore.deleteItemAsync("user");
@@ -78,7 +81,7 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
     }
 
     return (
-        <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.root, { backgroundColor: COLORS.bg }]}>
             <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} />
 
             <ScrollView
@@ -86,15 +89,26 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
                 contentContainerStyle={styles.scroll}
             >
                 {/* ── Hero header ── */}
-                <Surface style={[styles.hero, { backgroundColor: COLORS.primary }]} elevation={0}>
+                <Surface style={[styles.hero, { backgroundColor: COLORS.secondary }]} elevation={0}>
                     <View style={styles.heroInner}>
                         <Surface style={styles.avatarRing} elevation={2}>
-                            <Avatar.Icon
-                                size={136}
-                                icon="account-outline"
-                                style={{ backgroundColor: theme.colors.surfaceVariant }}
-                                color={theme.colors.onSurfaceVariant}
-                            />
+                            {user?.avatar
+                                ? (
+                                    <Avatar.Image
+                                        size={136}
+                                        source={{ uri: user.avatar }}
+                                    />
+                                )
+                                : (
+                                    <Avatar.Icon
+                                        size={136}
+                                        icon="account-outline"
+                                        style={{ backgroundColor: theme.colors.surfaceVariant }}
+                                        color={theme.colors.onSurfaceVariant}
+                                    />
+                                )
+                            }
+
                         </Surface>
 
                         <Text
@@ -144,24 +158,12 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
 
                                     <AppButton
                                         type="login"
-                                        mode="contained"
-                                        color={theme.colors.onPrimary}
-                                        textColor={theme.colors.primary}
-                                        contentStyle={styles.btnContent}
-                                        style={[styles.btnLogin, { backgroundColor: theme.colors.onPrimary }]}
-                                        labelStyle={styles.btnLabel}
                                         onPress={onLogin}
                                         onPressIn={() => navigation.navigate('Login')}
                                     />
 
                                     <AppButton
                                         type="register"
-                                        mode="contained"
-                                        color={theme.colors.onPrimary}
-                                        textColor={theme.colors.primary}
-                                        contentStyle={styles.btnContent}
-                                        style={[styles.btnLogin, { backgroundColor: theme.colors.onPrimary }]}
-                                        labelStyle={styles.btnLabel}
                                         onPress={onRegister}
                                         onPressIn={() => navigation.navigate('Register')}
                                     />
@@ -201,6 +203,7 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
                                                 title={item.label}
                                                 titleStyle={[styles.itemTitle, { color: theme.colors.onSurface }]}
                                                 style={styles.listItem}
+                                                onPress={()=>{navigation.navigate("Information", {type: item.type})}}
                                                 left={() => (
                                                     <View
                                                         style={[
@@ -241,17 +244,10 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
                         Phiên bản 1.0.0
                     </Text>
                 </View>
-                {user &&(
+                {user && (
                     <AppButton loading={loading} type='logout' style={{ marginTop: 20 }} onPress={handleLogout} />
                 )}
             </ScrollView>
-            <AppSnackbar
-                visible={snackbar.visible}
-                message={snackbar.message}
-                sub={snackbar.sub}
-                type={snackbar.type}
-                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
-            />
         </View>
     );
 };

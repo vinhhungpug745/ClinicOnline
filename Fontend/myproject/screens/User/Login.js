@@ -12,12 +12,22 @@ import * as SecureStore from 'expo-secure-store';
 import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
 import AppButton from "../../components/AppButton";
 import { createPublic, fetchPublic, fetchWithAuth } from "../../utils/apiHelper";
+import { useSnackbar } from "../../utils/contexts/SnackBarContext";
+import AppHeader from "../../components/AppHeader";
 
 const Login = ({ navigation, route }) => {
     const [user, setUser] = useState({
         username: "",
         password: "",
     });
+    const { showSnackbar } = useSnackbar();
+
+    useEffect(() => {
+        if (route.params?.successMessage) {
+            showSnackbar(route.params.successMessage, "success");
+        }
+    }, [route.params?.successMessage]);
+
     const info = [
         {
             label: "Tên đăng nhập",
@@ -41,8 +51,6 @@ const Login = ({ navigation, route }) => {
             },
         },]
 
-    const [snackbar, setSnackbar] = useState({});
-
     const [errors, setErrors] = useState({});
 
     const validate = (user) => {
@@ -56,8 +64,6 @@ const Login = ({ navigation, route }) => {
 
         if (!user.password) {
             err.password = "Vui lòng nhập mật khẩu";
-        } else if (user.password.length < 2) {
-            err.password = "Mật khẩu phải >= 6 ký tự";
         }
         return err;
     };
@@ -94,21 +100,24 @@ const Login = ({ navigation, route }) => {
                             async (data) => {
                                 dispatch({ type: "LOGIN", payload: data });
                                 const toSave = {
-                                    ...data, 
+                                    ...data,
                                     tokenExpiresAt: Date.now() + dataToken.expires_in * 1000,// 
                                     refresh_token: dataToken.refresh_token,
                                 }
                                 await SecureStore.setItemAsync("user", JSON.stringify(toSave));
+
+                                navigation.navigate("Home", {
+                                    screen: "Home",
+                                    params: {
+                                        successMessage: "Chào mừng bạn đã trở lại!",
+                                    }
+                                });
                             },
-                            (type, msg) => setSnackbar({ visible: true, message: msg, type })
+                            (type, msg) => showSnackbar(msg, "error", "Vui lòng thử lại")
                         );
                     }, 500);
-
-                    navigation.navigate("Home", {
-                        successMessage: "Chào mừng bạn đã trở lại! Hãy khám phá các dịch vụ của chúng tôi.",
-                    });
                 },
-                (type, msg) => setSnackbar({ visible: true, type: 'error', message: msg }),
+                (type, msg) => showSnackbar(`${msg} Vui lòng kiểm tra lại thông tin`, 'error'),
                 {},
                 null,
                 setLoading
@@ -117,23 +126,11 @@ const Login = ({ navigation, route }) => {
 
     }
 
-    useEffect(() => {
-        if (route?.params?.successMessage) {
-            setSnackbar({
-                visible: true,
-                message: route.params.successMessage,
-                sub: 'Vui lòng đăng nhập để tiếp tục',
-                type: 'success',
-            });
-        }
-    }, []);
-
     return (
         <View style={{ flex: 1 }}>
+            <AppHeader titles="Đăng nhập tài khoản" onBack={() => {navigation.goBack()}}>
+            </AppHeader>
             <ScrollView style={{ flex: 1, marginTop: 100, paddingHorizontal: 28 }}>
-
-                <Text style={{ fontSize: 24, fontWeight: '600', marginBottom: 30 }}>Nhập tài khoản</Text>
-
                 <InputField list={infoWithError} user={user} setUser={setUser} setErrors={setErrors} />
                 <View style={{ marginTop: 40 }}>
                     <AppButton loading={loading} type="login" icon="account-plus" onPress={handleLogin} />
@@ -158,13 +155,6 @@ const Login = ({ navigation, route }) => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-            <AppSnackbar
-                visible={snackbar.visible}
-                message={snackbar.message}
-                sub={snackbar.sub}
-                type={snackbar.type}
-                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
-            />
         </View>
     );
 }

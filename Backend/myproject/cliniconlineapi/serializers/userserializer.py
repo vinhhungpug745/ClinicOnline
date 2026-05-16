@@ -1,5 +1,6 @@
 from calendar import monthrange
 
+from cloudinary import CloudinaryResource
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from cliniconlineapi.models import User, StaffProfile, CustomerProfile, Specialty, StaffSpecialty, WorkDay, TimeSlot
@@ -8,56 +9,60 @@ from datetime import date, datetime
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # profile = serializers.DictField(write_only=True, required=False)
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'avatar', 'phone', 'email',
+        fields = ['id', 'first_name', 'last_name', 'avatar', 'phone', 'email','dob',
                   'username', 'password','gender',
-                  'role'] #,'profile'
+                  'role']
         extra_kwargs = {
             'password': {
                 'write_only': True,
             },
             'username': {
                 'write_only': True,
-            }
+            },
+            'avatar': {'required': False},
         }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if instance.avatar:
             data['avatar'] = instance.avatar.url
-
-        # try:
-            #     if instance.role == User.Role.CUSTOMER:
-            #         data["profile"] = CustomerProfileSerializer(instance.customer_profile).data
-            #     elif instance.role in [User.Role.DOCTOR, User.Role.HEALTHCARE]:
-            #         data["profile"] = StaffProfileSerializer(instance.staff_profile).data
-        #     else:
-        #         # Admin hoặc superuser không có profile
-        #         data["profile"] = None
-        # except Exception as e:
-        #     print(f"Profile error: {e}")
-        #     data["profile"] = None
-
         return data
 
     def validate_phone(self, value):
         if value: PhoneNumberValidator()(value)
         return value
 
+    def validate_avatar(self, value):
+
+        if isinstance(value, CloudinaryResource):
+            return value  # đã upload rồi, bỏ qua validate
+
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Ảnh không được vượt quá 5MB.")
+
+        allowed_types = ["image/jpeg", "image/png"]
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError("Chỉ chấp nhận ảnh JPG, PNG")
+
+        return value
+
     def validate_first_name(self, value):
-        if value: NameValidator(2,10)(value)
+        if value: NameValidator(2,20,
+                                "Họ tên phải có ít nhất 2 ký tự!",
+                                "Họ tên tối đa 20 ký tự!")(value)
         return value
 
     def validate_last_name(self, value):
         if value:
-            NameValidator(2,10)(value)
+            NameValidator(2,20,"Họ tên phải có ít nhất 2 ký tự!",
+                                "Họ tên tối đa 20 ký tự!")(value)
         return value
 
-    # def validate_password(self, value):
-    #     MinLengthValidator(6, message="Mật khẩu phải có ít nhất 6 ký tự.")(value)
-    #     return value
+    def validate_password(self, value):
+        MinLengthValidator(6, message="Mật khẩu phải có ít nhất 6 ký tự.")(value)
+        return value
 
     def validate_role(self, value):
         request = self.context.get("request")
@@ -86,9 +91,11 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class UserDetailSerializer(UserSerializer):
+    profile = serializers.DictField(required=False)
+
     class Meta:
         model = UserSerializer.Meta.model
-        fields = UserSerializer.Meta.fields
+        fields = UserSerializer.Meta.fields + ['profile']
 
         extra_kwargs = UserSerializer.Meta.extra_kwargs
 
@@ -100,16 +107,49 @@ class UserDetailSerializer(UserSerializer):
             data["profile"] = StaffProfileDetailSerializer(instance.staff_profile).data
         return data
 
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', None)
+        instance = super().update(instance, validated_data)
+
+        if profile_data:
+            if instance.role == User.Role.CUSTOMER:
+                serializer = CustomerProfileSerializer(
+                    instance.customer_profile,
+                    data=profile_data,
+                    partial=True
+                )
+            else:
+                serializer = StaffProfileDetailSerializer(
+                    instance.staff_profile,
+                    data=profile_data,
+                    partial=True
+                )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+        return instance
+
 class SpecialtySerializer(serializers.ModelSerializer):
     class Meta:
         model = Specialty
         fields = ["id", "name", "description"]
 
-# chưa validate
-class TimeSlotSerializer(serializers.ModelSerializer):
+
+class TimeSlotNormal(serializers.ModelSerializer):
     class Meta:
         model = TimeSlot
-        fields = ["id", "status", "start_time", "end_time"]
+        fields = ["id", "status"]
+
+class TimeSlotSerializer(TimeSlotNormal):
+    id = serializers.IntegerField(required=False)
+    class Meta:
+        model = TimeSlotNormal.Meta.model
+        fields = TimeSlotNormal.Meta.fields + ["start_time", "end_time"]
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        data.pop("work_day", None)
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         if attrs["start_time"] >= attrs["end_time"]:
@@ -206,12 +246,11 @@ class StaffProfileDetailSerializer(StaffProfileSerializer):
         model = StaffProfileSerializer.Meta.model
         fields = StaffProfileSerializer.Meta.fields
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["workday_set"] = WorkDaySerializer(instance.work_days.all(), many=True).data
-        return data
+    # def to_representation(self, instance):
+    #     data = super().to_representation(instance)
+    #     data["workday_set"] = WorkDaySerializer(instance.work_days.all(), many=True).data
+    #     return data
 
-# chưa validate
 class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile

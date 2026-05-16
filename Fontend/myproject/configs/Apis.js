@@ -7,7 +7,8 @@ console.log(API_URL);
 
 export const endpoints = {
     'doctors': '/doctors/',
-    'doctorDetail': (id) => `/doctors/${id}/doctor_detail/`,
+    'workdayDetail': (id) => `/users/workday/${id}/`,
+    'doctorDetail': (id) => `/doctors/${id}/`,
     'doctorWorkDay': (id) => `/doctors/${id}/doctor_workday/`,
     'doctorspecialty': (id) => `/specialtys/${id}/doctors/`,
     'specialty': '/specialtys/',
@@ -16,8 +17,10 @@ export const endpoints = {
     'profile': '/users/profile_user/',
     'register': '/users/',
     'appointments': '/appointments/',
-    'appointmentDetail': (id) => `/appointments/${id}/detail/`,
-    'workday': '/users/workday_staff/'
+    'appointmentDetail': (id) => `/appointments/${id}/`,
+    'workday': '/users/workday_staff/',
+    'updateworkday': (id) => `/users/workday/${id}/timeslots/`,
+    'chatgemini': '/chatbox/'
 }
 
 export const authApis = (token) => {

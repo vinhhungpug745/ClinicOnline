@@ -6,7 +6,7 @@ export const formatSlots = (workdays) => {
             const hour = parseInt(slot.start_time.split(":")[0]);
             const item = {
                 id: slot.id,
-                start_time: slot.start_time.slice(0, 5),   // "08:00:00" → "08:00"
+                start_time: slot.start_time.slice(0, 5),
                 end_time: slot.end_time.slice(0, 5),
                 label: `${slot.start_time.slice(0, 5)} - ${slot.end_time.slice(0, 5)}`,
                 status: slot.status,

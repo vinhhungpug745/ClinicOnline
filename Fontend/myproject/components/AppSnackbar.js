@@ -80,8 +80,9 @@ const styles = StyleSheet.create({
     },
     snackbar: {
         borderRadius: 14,
-        paddingVertical: 4,
+        paddingVertical: 8,
         paddingHorizontal: 8,
+        paddingBottom: 8,
     },
     content: {
         flexDirection: 'row',

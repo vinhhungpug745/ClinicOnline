@@ -6,6 +6,7 @@ import COLORS from "../../styles/Colors";
 import Row from "../../components/Appointment/Row";
 import SectionTitle from "../../components/Appointment/SectionTilte";
 import InfoCard from "../../components/Appointment/InfoCard";
+import { useBooking } from "../../utils/contexts/BookingContext";
 
 
 const shiftMap = { morning: "🌤 Buổi sáng", afternoon: "☀️ Buổi chiều", evening: "🌙 Buổi tối" };
@@ -15,8 +16,10 @@ const genderMap = { male: "Nam", female: "Nữ", other: "Khác" };
 
 
 
-const Step3Confirm = ({ data }) => {
-    const p = data.patient;
+const Step3Confirm = () => {
+    const {bookingData} = useBooking();
+    const p = bookingData?.patient;
+
     const fullName = `${p.last_name} ${p.first_name}`;
 
     return (
@@ -39,12 +42,12 @@ const Step3Confirm = ({ data }) => {
             <SectionTitle icon="calendar-clock" text="Thông tin lịch khám" />
             <InfoCard
                 rows={[
-                    { icon: "stethoscope", label: "Chuyên khoa", value: data.specialty?.name },
-                    { icon: "account-tie", label: "Bác sĩ", value: data.doctor?.name },
-                    { icon: "medical-bag", label: "Dịch vụ", value: data.serviceNormal?.name },
-                    { icon: "calendar", label: "Ngày khám", value: data.date },
-                    { icon: "weather-sunset", label: "Ca làm việc", value: shiftMap[data.shift] },
-                    { icon: "clock-outline", label: "Giờ khám", value: `${data.slots?.start} - ${data.slots?.end}` },
+                    { icon: "stethoscope", label: "Chuyên khoa", value: bookingData.specialty?.name },
+                    { icon: "account-tie", label: "Bác sĩ", value: bookingData.doctor?.name },
+                    { icon: "medical-bag", label: "Dịch vụ", value: bookingData.serviceNormal?.name },
+                    { icon: "calendar", label: "Ngày khám", value: bookingData.date },
+                    { icon: "weather-sunset", label: "Ca làm việc", value: shiftMap[bookingData.shift] },
+                    { icon: "clock-outline", label: "Giờ khám", value: `${bookingData.slots?.start_time} - ${bookingData.slots?.end_time}` },
                 ]}
             />
 
@@ -96,8 +99,8 @@ const Step3Confirm = ({ data }) => {
             <InfoCard
                 style={{ marginBottom: 16 }}
                 rows={[
-                    { icon: "text-box-outline", label: "Lý do khám", value: data.patient?.reason },
-                    { icon: "alert-circle-outline", label: "Triệu chứng", value: data.patient?.symptoms },
+                    { icon: "text-box-outline", label: "Lý do khám", value: bookingData.patient?.reason },
+                    { icon: "alert-circle-outline", label: "Triệu chứng", value: bookingData.patient?.symptoms },
                 ]}
             />
 

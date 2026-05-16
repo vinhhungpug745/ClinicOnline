@@ -19,6 +19,7 @@ const TimeSlot = ({ shift, selectedSlots, onSlotsChange, SLOTS, multiple = true 
   };
 
   const handlePress = (slot) => {
+    if (slot.status === 'Booked') return;
     const exists = isSelected(slot);
 
     if (multiple) {
@@ -27,12 +28,12 @@ const TimeSlot = ({ shift, selectedSlots, onSlotsChange, SLOTS, multiple = true 
           selectedSlots.filter(s => !(s.start_time === slot.start_time && s.end_time === slot.end_time))
         );
       } else
-        onSlotsChange([...selectedSlots, { start_time: slot.start_time, end_time: slot.end_time }]);
+        onSlotsChange([...selectedSlots, { id: slot.id, start_time: slot.start_time, end_time: slot.end_time }]);
     } else {
       if (exists) {
-        onSlotsChange(null); // bỏ chọn
+        onSlotsChange(null);
       } else
-        onSlotsChange({start_time: slot.start_time, end_time: slot.end_time });
+        onSlotsChange({ id: slot.id, start_time: slot.start_time, end_time: slot.end_time });
     }
   };
 
@@ -43,22 +44,27 @@ const TimeSlot = ({ shift, selectedSlots, onSlotsChange, SLOTS, multiple = true 
     </View>
   );
 
+  const formatSlotLabel = (label) => {
+    return label
+      .split(" - ")
+      .map((time) => time.slice(0, 5))
+      .join(" - ");
+  };
+
   return (
     <View>
-      <Text variant="labelSmall" style={styles.label}>
-        Chọn khung giờ
-      </Text>
       <View style={styles.row}>
         {slots.map(slot => (
           <Chip
             key={slot.label}
             selected={isSelected(slot)}
+            disabled={slot.status === 'Booked'}
             onPress={() => handlePress(slot)}
-            style={[styles.chip, isSelected(slot) && styles.selected]}
+            style={[styles.chip, isSelected(slot) && styles.selected, slot.status === 'Booked' && styles.booked]}
             textStyle={[styles.text, isSelected(slot) && styles.textSel]}
             showSelectedCheck={false}
           >
-            {slot.label}
+            {formatSlotLabel(slot.label)}
           </Chip>
         ))}
       </View>
@@ -70,9 +76,15 @@ export default TimeSlot;
 
 const styles = StyleSheet.create({
   label: { color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 ,justifyContent: 'center',},
+  chip: { borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0'},
   selected: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  booked: {
+    backgroundColor: '#b4b4b4',
+    borderColor: '#0a0a0a',
+    borderWidth: 1,
+    opacity: 0.7,
+  },
   text: { fontSize: 12, color: '#64748b' },
   textSel: { color: '#1d4ed8', fontWeight: '600' },
 });

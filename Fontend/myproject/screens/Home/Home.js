@@ -9,21 +9,22 @@ import { useNavigation } from '@react-navigation/native';
 import AppList from '../../components/AppList';
 import { fetchPublic } from '../../utils/apiHelper';
 import AppSnackbar from '../../components/AppSnackbar';
+import { useSnackbar } from '../../utils/contexts/SnackBarContext';
+import LoadingScreen from '../../components/LoadingScreen';
+import AnimatedPressable from '../../components/Animation/AnimatedPressable';
+import COLORS from '../../styles/Colors';
 
-const Home = ({ navigation }) => {
+const Home = ({ navigation, route }) => {
     const [doctors, setDoctors] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
     const [refreshing, setRefreshing] = useState(false);
     const [hasMore, setHasMore] = useState(true);
-    const [snackbar,setSnackbar] = useState({})
+    const { showSnackbar } = useSnackbar();
+    const [loading, setLoading] = useState(true);
 
-    const onRefresh = useCallback(() => loadDoctors(true), []);
-
-    // chua try catch
     const loadDoctors = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
-
         await fetchPublic(
             endpoints.doctors,
             (data, next) => {
@@ -33,20 +34,31 @@ const Home = ({ navigation }) => {
                 }
                 setDoctors(prev => [...prev, ...data]);
             },
-            (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
+            (type, msg) => showSnackbar(msg, 'error', 'Không thể tải danh sách bác sĩ'),
             {page}
         )
+        if (isRefresh) setRefreshing(false);
+        setLoading(false);
     }
 
     useEffect(() => {
         if (page !== null) loadDoctors();
     }, [page]);
 
+    useEffect(() => {
+        if (route.params?.successMessage) {
+            showSnackbar(route.params.successMessage, 'success');
+        }
+    }, [route.params?.successMessage]);
+
+    if (loading) return <LoadingScreen text="Đang tải thông tin..." />;
 
     return (
-        <View>
-
+        <View style={{ flex: 1, backgroundColor: COLORS.bg}}>
             <ScrollView showsVerticalScrollIndicator={false}>
+                <View>
+                    
+                </View>
                 <Text style={{ fontSize: 24, fontWeight: '600', marginVertical: 36 }}>Home Screen</Text>
                 <Searchbar placeholder="Search" onChangeText={setSearchQuery} value={searchQuery} />
                 <View style={{ marginVertical: 30 }}>
@@ -62,9 +74,14 @@ const Home = ({ navigation }) => {
                         data={doctors}
                         keyExtractor={(item) => item.id.toString()}
                         refreshing={refreshing}
-                        onRefresh={onRefresh}
+                        onRefresh={()=>{
+                            setDoctors([]);
+                            loadDoctors(true);
+                        }}
                         renderItem={({ item }) => {
-                            return (<DoctorCard item={item} navigation={navigation} />);
+                            return (
+                                <DoctorCard item={item} navigation={navigation} />
+                            );
                         }}
                         emptyIcon="doctor"
                         emptyTitle="Không có bác sĩ"
@@ -81,13 +98,6 @@ const Home = ({ navigation }) => {
                 </View>
 
             </ScrollView>
-            <AppSnackbar
-                visible={snackbar.visible}
-                message={snackbar.message}
-                sub={snackbar.sub}
-                type={snackbar.type}
-                onDismiss={() => setSnackbar(s => ({ ...s, visible: false }))}
-            />
         </View>
     );
 };

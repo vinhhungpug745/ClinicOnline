@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from 'react-native-paper';
 import COLORS from '../styles/Colors';
+import { Animated} from 'react-native';
 
 
 const BUTTON_CONFIGS = {
@@ -40,20 +41,42 @@ const AppButton = ({
     ...props
 }) => {
     const config = BUTTON_CONFIGS[type];
+    const scale = React.useRef(new Animated.Value(1)).current;
 
+    const onPressIn = () => {
+        Animated.spring(scale, {
+            toValue: 0.95,
+            useNativeDriver: true,
+            speed: 50,
+            bounciness: 10,
+        }).start();
+    };
+
+    const onPressOut = () => {
+        Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 50,
+            bounciness: 10,
+        }).start();
+    };
     return (
-        <Button
-            mode="contained"
-            icon={icon ?? config.icon}
-            loading={loading}
-            disabled={disabled || loading}
-            onPress={onPress}
-            buttonColor={config.color}
-            style={[{ borderRadius: 18,paddingVertical: 2 , marginBottom: 15, marginHorizontal: 10}, style]}
-            {...props}
-        >
-            {label ?? config.label}
-        </Button>
+        <Animated.View style={{ transform: [{ scale }] }}>
+            <Button
+                mode="contained"
+                icon={icon ?? config.icon}
+                loading={loading}
+                disabled={disabled || loading}
+                onPress={onPress}
+                onPressIn={onPressIn}
+                onPressOut={onPressOut}
+                buttonColor={config.color}
+                style={[{ borderRadius: 18,paddingVertical: 2 , marginBottom: 15, marginHorizontal: 10}, style]}
+                {...props}
+            >
+                {label ?? config.label}
+            </Button>
+        </Animated.View>
     );
 };
 

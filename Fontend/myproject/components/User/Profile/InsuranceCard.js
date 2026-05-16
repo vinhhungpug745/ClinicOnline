@@ -1,14 +1,16 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Card } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "react-native";
 import { Field, StyledInput, SectionLabel } from "./FormComponents";
 import COLORS from "../../../styles/Colors";
+import DateTimePicker from '@react-native-community/datetimepicker';
 
-const InsuranceCard = ({ data, updateProfile }) => {
+
+const InsuranceCard = ({ data, updateProfile, err = {} }) => {
     const p = data.patient ? data.patient : data;
-
+    const [show, setShow] = useState(false);
     return (
         <>
             <SectionLabel icon="card-account-details-outline" text="Bảo hiểm y tế" />
@@ -21,15 +23,36 @@ const InsuranceCard = ({ data, updateProfile }) => {
                             value={p.profile.insurance_number}
                             onChangeText={(v) => updateProfile("insurance_number", v)}
                             autoCapitalize="characters"
+                            error={!!err.insurance_number}
+                            errorMessage={err.insurance_number}
                         />
                     </Field>
 
                     <Field label="Ngày hết hạn thẻ">
-                        <StyledInput
-                            placeholder="DD/MM/YYYY"
-                            value={p.profile.insurance_expiry_date}
-                            onChangeText={(v) => updateProfile("insurance_expiry_date", v)}
-                        />
+                        <Pressable onPress={() => setShow(true)}>
+                            <StyledInput
+                                placeholder="DD/MM/YYYY"
+                                editable={false}
+                                pointerEvents="none"
+                                value={p && p.profile.insurance_expiry_date ? new Date(p.profile.insurance_expiry_date).toLocaleDateString('vi-VN') : ""}
+                                error={!!err.insurance_expiry_date}
+                                errorMessage={err.insurance_expiry_date}
+                            />
+                        </Pressable>
+
+                        {show && (
+                            <DateTimePicker 
+                                value={data.patient && data.patient.dob ? new Date(data.patient.dob) : new Date()}
+                                mode="date"
+                                display="default"
+                                minimumDate={new Date()}
+                                maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() + 5))}
+                                onChange={(event, selectedDate) => {
+                                    setShow(false);
+                                    if (selectedDate) updateProfile("insurance_expiry_date", selectedDate.toISOString().split('T')[0]);
+                                }}
+                            />
+                        )}
                     </Field>
 
                     <View style={styles.infoBadge}>

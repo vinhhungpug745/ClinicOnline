@@ -49,6 +49,16 @@ export const updateWithAuth = async (endpoint, body, onSuccess, onError, setLoad
     finally { setLoading?.(false); }
 };
 
+export const updatePatchWithAuth = async (endpoint, body, onSuccess, onError, setLoading) => {
+    setLoading?.(true);
+    try {
+        const token = await AsyncStorage.getItem("access_token");
+        let res = await authApis(token).patch(endpoint, body);
+        if (res.status === 200) onSuccess(res.data);
+    } catch (err) { handleError(err, onError); }
+    finally { setLoading?.(false); }
+};
+
 export const deleteWithAuth = async (endpoint, onSuccess, onError, setLoading) => {
     setLoading?.(true);
     try {

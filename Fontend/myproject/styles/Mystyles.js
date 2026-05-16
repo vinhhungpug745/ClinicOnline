@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import COLORS from './Colors';
 
 export default StyleSheet.create({
   container: {
@@ -89,5 +90,26 @@ export default StyleSheet.create({
     elevation: 10, // Android
     backgroundColor: "#fff",
     borderRadius: 12,
+  },
+  tabBar: {
+    height: 62,
+    paddingBottom: 8,
+    paddingTop: 6,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.white,
+    borderTopWidth: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    elevation: 12,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    position: "absolute", // bắt buộc để border radius hiện
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });

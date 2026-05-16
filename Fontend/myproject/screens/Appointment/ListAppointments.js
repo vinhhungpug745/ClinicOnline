@@ -1,66 +1,93 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { FlatList, View, Text, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, ScrollView, } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { fetchWithAuth } from "../../utils/apiHelper";
+import { fetchWithAuth, updatePatchWithAuth } from "../../utils/apiHelper";
 import { endpoints } from "../../configs/Apis";
 import AppointmentCard from "../../components/Appointment/AppointmentCard";
 import COLORS from "../../styles/Colors";
 import Mystyles from "../../styles/Mystyles";
 import AppList from "../../components/AppList";
 import { MyUserContext } from "../../utils/contexts/MyUserContext";
-
-
+import LoadingScreen from "../../components/LoadingScreen";
+import AppHeader from "../../components/AppHeader";
+import { useSnackbar } from "../../utils/contexts/SnackBarContext";
+import { useAlert } from "../../utils/contexts/AlertContext";
 
 const FILTERS = [
     { key: "all", label: "Tất cả" },
-    { key: "Pending", label: "Chờ khám" },
+    { key: "Pending", label: "Chờ duyệt" },
     { key: "Confirmed", label: "Đã xác nhận" },
-    { key: "Done", label: "Hoàn thành" },
-    { key: "Cancelled", label: "Đã huỷ" },
+    { key: "Completed", label: "Hoàn thành" },
+    { key: "Canceled", label: "Đã từ chối" },
 ];
 
 const ListAppointments = ({ navigation }) => {
     const [appointments, setAppointments] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [loadingScrean, setLoadingScrean] = useState(true)
     const [refreshing, setRefreshing] = useState(false);
     const [activeFilter, setActiveFilter] = useState("all");
     const [error, setError] = useState(null);
     const { user, dispatch } = React.useContext(MyUserContext);
+    const { showSnackbar } = useSnackbar();
+    const {showAlertAuth} = useAlert();
     const loadAppointments = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
-        else setLoading(true);
+        else setLoadingScrean(true);
         setError(null);
-        
-        try {
-            await fetchWithAuth(endpoints.appointments, (data) => {
-                setAppointments(data);
-            });
-        } catch (err) {
-            setError("Không thể tải danh sách lịch hẹn. Vui lòng thử lại.");
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
+
+        await fetchWithAuth(
+            endpoints.appointments,
+            (data) => { setAppointments(data); },
+            (err) => { setError("Không thể tải danh sách lịch hẹn. Vui lòng thử lại."); },);
+
+        if (isRefresh) setRefreshing(false);
+        else setLoadingScrean(false);
     };
 
     useEffect(() => {
-        if (!user) return; 
+        if (!user) return;
         loadAppointments();
     }, [user]);
 
-    const onRefresh = useCallback(() => loadAppointments(true), []);
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) {
+                showAlertAuth({ lable: "Lịch hẹn" })
+                setLoading(false)
+                return
+            }loadAppointments();
+        }, [])
+    );
+
+    const changeStatusAppointment = async (id, stutus) => {
+        await updatePatchWithAuth(
+            endpoints.appointmentDetail(id),
+            stutus,
+            (data) => {
+                showSnackbar("Duyệt phiếu thành công", "success")
+            },
+            (type, msg, errData) => {
+                if (type === "client") {
+                    showSnackbar("Duyệt phiếu thất bại!", "error", msg);
+                } else if (type === "server") {
+                    showSnackbar("Lỗi máy chủ!", msg, "error");
+                } else {
+                    showSnackbar("Mất kết nối!", msg, "error");
+                }
+            }, setLoading
+
+        )
+    }
+
 
     const filteredData = activeFilter === "all" ? appointments : appointments.filter((a) => a.status === activeFilter);
 
-
-    if (loading) {
+    if (loadingScrean) {
         return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.stateText}>Đang tải lịch hẹn...</Text>
-            </View>
+            <LoadingScreen text="Đang tải lịch hẹn của bạn..." />
         );
     }
 
@@ -78,60 +105,63 @@ const ListAppointments = ({ navigation }) => {
     }
 
     return (
-        <View style={Mystyles.container}>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+            <AppHeader titles="Lịch hẹn của tôi" onBack={() => {
+                navigation.goBack();
+            }}>
+                <View style={styles.header}>
+                    <Text style={styles.headerSub}>{appointments.length} lịch hẹn</Text>
+                </View>
 
-            {/* ── Header ── */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Lịch hẹn của tôi</Text>
-                <Text style={styles.headerSub}>{appointments.length} lịch hẹn</Text>
+                <View style={{ paddingVertical: 10 }}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.filterRow}
+                    >
+                        {FILTERS.map((f) => {
+                            const isActive = activeFilter === f.key;
+                            return (
+                                <TouchableOpacity
+                                    key={f.key}
+                                    style={[styles.filterChip, isActive && styles.filterChipActive]}
+                                    onPress={() => setActiveFilter(f.key)}
+                                    activeOpacity={0.5}
+                                >
+                                    <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                                        {f.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+            </AppHeader>
+            <View style={{ flex: 1, paddingTop: 16 }}>
+                <AppList
+                    data={filteredData}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                        <AppointmentCard
+                            item={item}
+                            onPress={() =>
+                                navigation.navigate("AppointmentDetail", { id: item.id })
+                            }
+                            onConfirm={(id) => changeStatusAppointment(id, { "status": "Confirmed" })}
+                            onReject={(id) => changeStatusAppointment(id, { "status": "Canceled" })}
+                        />
+                    )}
+                    refreshing={refreshing}
+                    onRefresh={() => loadAppointments(true)}
+                    emptyIcon="calendar-blank-outline"
+                    emptyTitle="Không có lịch hẹn"
+                    emptyText={
+                        activeFilter === "all"
+                            ? "Bạn chưa có lịch hẹn nào."
+                            : "Không có lịch hẹn ở trạng thái này."
+                    }
+                />
             </View>
-
-            {/* ── Filter chips (scroll ngang) ── */}
-            <View style={{ paddingVertical: 10 }}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.filterRow}
-                >
-                    {FILTERS.map((f) => {
-                        const isActive = activeFilter === f.key;
-                        return (
-                            <TouchableOpacity
-                                key={f.key}
-                                style={[styles.filterChip, isActive && styles.filterChipActive]}
-                                onPress={() => setActiveFilter(f.key)}
-                                activeOpacity={0.5}
-                            >
-                                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                                    {f.label}
-                                </Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
-            </View>
-            {/* ── List ── */}
-            <AppList
-                data={filteredData}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                    <AppointmentCard
-                        item={item}
-                        onPress={() =>
-                            navigation.navigate("AppointmentDetail", { id: item.id })
-                        }
-                    />
-                )}
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                emptyIcon="calendar-blank-outline"
-                emptyTitle="Không có lịch hẹn"
-                emptyText={
-                    activeFilter === "all"
-                        ? "Bạn chưa có lịch hẹn nào."
-                        : "Không có lịch hẹn ở trạng thái này."
-                }
-            />
         </View>
     );
 };
@@ -146,8 +176,7 @@ const styles = StyleSheet.create({
     // Header
     header: {
         paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 8,
+        paddingVertical: 5,
     },
     headerTitle: {
         fontSize: 22,
@@ -156,7 +185,7 @@ const styles = StyleSheet.create({
     },
     headerSub: {
         fontSize: 13,
-        color: COLORS.textMuted,
+        color: COLORS.white,
         marginTop: 2,
     },
 
@@ -171,21 +200,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 7,
         borderRadius: 20,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: COLORS.blue,
         borderWidth: 0.5,
-        borderColor: "#D1D5DB",
+        borderColor: COLORS.border,
+        borderWidth: 1.5,
     },
     filterChipActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        backgroundColor: COLORS.border,
+        borderColor: COLORS.white,
     },
     filterText: {
         fontSize: 13,
-        color: COLORS.textMuted,
+        color: COLORS.white,
         fontWeight: "500",
     },
     filterTextActive: {
-        color: "#FFFFFF",
+        color: COLORS.text,
         fontWeight: "700",
     },
 

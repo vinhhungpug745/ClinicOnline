@@ -3,13 +3,15 @@ import {
     View, Text, ScrollView, StyleSheet,
     TextInput, Pressable
 } from "react-native";
-import { Card, SegmentedButtons, Chip } from "react-native-paper";
+import { Card, SegmentedButtons, Chip, Button } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import COLORS from "../../styles/Colors";
 import InsuranceCard from "../../components/User/Profile/InsuranceCard";
 import PersonalInfoCard from "../../components/User/Profile/PersonalInfoCard";
 import MedicalInfoCard from "../../components/User/Profile/MedicalInfoCard";
-
+import { useBooking } from "../../utils/contexts/BookingContext";
+import AppButton from "../../components/AppButton";
+import { useNavigation } from "@react-navigation/native";
 const BLOOD_TYPES = ["A+", "B+", "AB+", "O+", "A-", "B-", "AB-", "O-"];
 
 const SectionLabel = ({ icon, text }) => (
@@ -37,8 +39,12 @@ const StyledInput = ({ style, ...props }) => (
     />
 );
 
-const Step2Profile = ({ data, updatePatient, updateProfile }) => {
-    const p = data.patient;
+const Step2Profile = () => {//{ data, updatePatient, updateProfile }
+    // const p = data.patient;
+
+    const { updatePatient, updateProfile, bookingData } = useBooking();
+    const navigation = useNavigation();
+    const p = bookingData.patient;
 
     return (
         <ScrollView
@@ -46,9 +52,18 @@ const Step2Profile = ({ data, updatePatient, updateProfile }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
         >
-            <PersonalInfoCard data={data} updatePatient={updatePatient} />
-            <InsuranceCard data={data} updateProfile={updateProfile} />
-            <MedicalInfoCard data={data} updateProfile={updateProfile} />
+            <View>
+                <AppButton
+                    type="edit"
+                    label="Cập nhật sơ yếu lí lịch"
+                    onPress={() => navigation.navigate("User", { screen: "ProfileDetail" })}
+                />
+            </View>
+            <View pointerEvents={"none"}>
+                <PersonalInfoCard data={bookingData} updatePatient={updatePatient} />
+                <InsuranceCard data={bookingData} updateProfile={updateProfile} />
+                <MedicalInfoCard data={bookingData} updateProfile={updateProfile} />
+            </View>
 
             {/* ── LÝ DO KHÁM ── */}
             <SectionLabel icon="clipboard-text-outline" text="Lý do khám" />

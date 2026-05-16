@@ -7,8 +7,8 @@ import Booking from './screens/Appointment/Booking';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from 'react-native-paper';
-import { View } from 'react-native';
+import { Icon, Snackbar } from 'react-native-paper';
+import { Alert, View } from 'react-native';
 import Scheduler from './screens/User/Schedule';
 import { MyUserContext } from './utils/contexts/MyUserContext';
 import { useContext, useEffect, useReducer, useState } from 'react';
@@ -21,18 +21,26 @@ import ProfileDetail from './screens/User/ProfileDetail';
 import { createPublic } from './utils/apiHelper';
 import { endpoints } from './configs/Apis';
 import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
+import SnackbarProvider from './utils/contexts/SnackBarContext';
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import Workday from './screens/WorkDay/Workday';
+import AlertProvider from './utils/contexts/AlertContext';
+import Information from './screens/Home/Information';
+import Mystyles from './styles/Mystyles';
+import COLORS from './styles/Colors';
+import Chat from './screens/BoxChat/Chat';
 
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const StackUserNavigator = () => {
-  // thông tin user toàn cục
   const { user } = useContext(MyUserContext);
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={"UserProfile"}>
       <Stack.Screen name="UserProfile" component={UserProfile} />
+      <Stack.Screen name="Information" component={Information} />
       {user ? (
         <>
           <Stack.Screen name="Schedule" component={Scheduler} />
@@ -78,66 +86,120 @@ const ListAppointmentNavigator = () => (
 const TabNavigatior = () => {
   const { user } = useContext(MyUserContext);
 
-  const requireAuth = (navigation, targetScreen) => ({
-    tabPress: (e) => {
-      if (!user) {
-        e.preventDefault();
-        navigation.navigate("User");
-      }
-    },
-  });
-
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={StackHomeNavigator} options={{ tabBarIcon: () => <Icon size={20} source="home" /> }} />
-      <Tab.Screen name="Booking" component={AppointmentNavigator} listeners={({ navigation }) => requireAuth(navigation, "Booking")} options={{ tabBarIcon: () => <Icon size={20} source="calendar" /> }} />
-      <Tab.Screen name="TabAppointments" component={ListAppointmentNavigator} listeners={({ navigation }) => requireAuth(navigation, "ListAppointments")} options={{ tabBarIcon: () => <Icon size={20} source="calendar" /> }} />
-      <Tab.Screen name="User" component={StackUserNavigator} options={{ tabBarIcon: () => <Icon size={20} source="account" /> }} />
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textLight,
+        unmountOnBlur: true
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={StackHomeNavigator}
+        options={{
+          tabBarLabel: "Trang chủ",
+          tabBarIcon: ({ color }) => <Icon size={22} source="home-outline" color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Booking"
+        component={AppointmentNavigator}
+        options={{
+          tabBarLabel: "Đặt lịch",
+          tabBarIcon: ({ color }) => <Icon size={22} source="calendar-plus" color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={Chat}
+        options={{
+          tabBarLabel: "Chatbox hỗ trợ",
+          tabBarIcon: ({ color }) => <Icon size={22} source="message-text" color={color} />,
+        }}
+      />
+      {user && (user.role === "doctor" || user.role === "healthcare") && (
+        <Tab.Screen
+          name="Workday"
+          component={Workday}
+          options={{
+            tabBarLabel: "Lịch làm",
+            tabBarIcon: ({ color }) => <Icon size={22} source="calendar-check-outline" color={color} />,
+          }}
+        />
+      )}
+
+      <Tab.Screen
+        name="TabAppointments"
+        component={ListAppointmentNavigator}
+        options={{
+          tabBarLabel: "Lịch hẹn",
+          tabBarIcon: ({ color }) => <Icon size={22} source="clipboard-list-outline" color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="User"
+        component={StackUserNavigator}
+        options={{
+          tabBarLabel: "Tài khoản",
+          tabBarIcon: ({ color }) => <Icon size={22} source="account-circle-outline" color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
-}
-
-
+};
 
 const App = () => {
 
   const [user, dispatch] = useReducer(MyUserReducer, null);
 
   const loadUser = async () => {
-    const savedStr = await SecureStore.getItemAsync("user");
-    const saved = savedStr ? JSON.parse(savedStr) : null;
-    const isExpired = saved ? Date.now() >= saved.tokenExpiresAt : true;
-    if (isExpired) {
-      if (saved === null){
-        return
-      }
-      await createPublic(
-        endpoints.login,
-        {
-          refresh_token: saved.refresh_token,
-          client_id: CLIENT_ID_APP,
-          client_secret: CLIENT_SECRET_APP,
-          grant_type: "refresh_token",
-        },
-        (data) => {
-          const updated = {
-            ...saved,
-            tokenExpiresAt: Date.now()+ data.expires_in * 1000, //
-            refresh_token: data.refresh_token,
+    try {
+      const savedStr = await SecureStore.getItemAsync("user");
+      const saved = savedStr ? JSON.parse(savedStr) : null;
+
+      console.log("Saved user loaded:", saved);
+
+      if (saved === null) return;
+
+      const isExpired = Date.now() >= saved.tokenExpiresAt;
+
+      if (isExpired) {
+        await createPublic(
+          endpoints.login,
+          {
+            refresh_token: saved.refresh_token,
+            client_id: CLIENT_ID_APP,
+            client_secret: CLIENT_SECRET_APP,
+            grant_type: "refresh_token",
+          },
+          async (data) => {
+            const updated = {
+              ...saved,
+              refresh_token: data.refresh_token,
+              tokenExpiresAt: Date.now() + data.expires_in * 1000,
+            };
+            await AsyncStorage.setItem("access_token", data.access_token);
+            SecureStore.setItemAsync("user", JSON.stringify(updated));
+            dispatch({ type: "LOGIN", payload: updated });
+          },
+          (err) => {
+            SecureStore.deleteItemAsync("user");
+            dispatch({ type: "LOGOUT" });
+            console.log("Token hết hạn, chuyển đến login");
           }
-          SecureStore.setItemAsync("user", JSON.stringify(updated));
-          dispatch({ type: "LOGIN", payload: updated});
-        },
-        (err, onError) => {
-          SecureStore.deleteItemAsync("user");
-          console.log("chuyenr đến login")
-        }
-      )
+        );
+      } else {
+        console.log("Token hợp lệ, đăng nhập tự động");
+        dispatch({ type: "LOGIN", payload: saved });
+      }
+
+    } catch (err) {
+      console.error("loadUser error:", err);
+      dispatch({ type: "LOGOUT" });
     }
-    else {
-      dispatch({ type: "LOGIN", payload: saved});
-    }
-  }
+  };
 
   useEffect(() => {
     loadUser();
@@ -145,11 +207,17 @@ const App = () => {
 
 
   return (
-    <MyUserContext.Provider value={{ user, dispatch }}>
-      <NavigationContainer>
-        <TabNavigatior />
-      </NavigationContainer>
-    </MyUserContext.Provider>
+    <SafeAreaProvider>
+      <MyUserContext.Provider value={{ user, dispatch }}>
+        <SnackbarProvider>
+          <NavigationContainer>
+            <AlertProvider>
+              <TabNavigatior />
+            </AlertProvider>
+          </NavigationContainer>
+        </SnackbarProvider>
+      </MyUserContext.Provider>
+    </SafeAreaProvider>
   );
 }
 

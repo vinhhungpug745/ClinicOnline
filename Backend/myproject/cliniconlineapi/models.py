@@ -12,9 +12,15 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
 
+AbstractUser.username.field.error_messages["unique"] = 'Tên đăng nhập đã tồn tại !'
 class User(AbstractUser):
-    avatar = CloudinaryField(null=True)
-    phone = models.CharField(max_length=20, null=True, unique=True)
+    avatar = CloudinaryField(null=True, blank=True)
+    email = models.EmailField(unique=True, blank=True, null=True, error_messages={
+        "unique": "Email này đã tồn tại !"
+    })
+    phone = models.CharField(max_length=20, null=True, unique=True, blank=True, error_messages={
+            "unique": "Số điện thoại đã được sử dụng !"
+        })
     class Role(models.TextChoices):
         CUSTOMER = "customer"
         DOCTOR = "doctor"
@@ -26,6 +32,7 @@ class User(AbstractUser):
 
     gender = models.CharField(max_length=10, choices=Gender.choices,null=True,blank=True,default=Gender.OTHER)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CUSTOMER)
+    dob = models.DateField(null=True, blank=True)
 
 
 class Specialty(BaseModel):
@@ -126,7 +133,7 @@ class Appointment(BaseModel):
     reason = models.TextField(blank=False, null= False)
     symptoms = models.TextField(blank=True, null= True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    time_slot=models.OneToOneField(TimeSlot, on_delete=models.CASCADE,related_name="appointment_time_slot")
+    time_slot=models.OneToOneField(TimeSlot, on_delete=models.PROTECT,related_name="appointment_time_slot")
 
     customer = models.ForeignKey(User, on_delete=models.CASCADE,related_name="appointments_customer")
     doctor = models.ForeignKey(User, on_delete=models.CASCADE,related_name="appointments_doctor")

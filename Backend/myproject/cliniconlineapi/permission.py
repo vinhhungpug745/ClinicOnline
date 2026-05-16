@@ -34,5 +34,28 @@ class IsAppointmentOwner(IsAuthenticated):
     def has_object_permission(self, request, view, Appointment):
         return (
                 super().has_permission(request, view) and
-                request.user == Appointment.user
+                ((request.user == Appointment.customer) or (request.user == Appointment.doctor))
+        )
+
+class IsDoctorAndAppointmentOwner(IsAppointmentOwner):
+    def has_object_permission(self, request, view, Appointment):
+        return (
+                super().has_permission(request, view) and
+                request.user.role == User.Role.DOCTOR and
+                request.user == Appointment.doctor
+        )
+
+class IsCustomerAndAppointmentOwner(IsAppointmentOwner):
+    def has_object_permission(self, request, view, Appointment):
+        return (
+                super().has_permission(request, view) and
+                request.user.role == User.Role.CUSTOMER and
+                request.user == Appointment.customer
+        )
+
+class IsWorkdayOwner(IsAuthenticated):
+    def has_object_permission(self, request, view, Workday):
+        return (
+            super().has_permission(request, view) and
+            request.user == Workday.staff_profile.user
         )

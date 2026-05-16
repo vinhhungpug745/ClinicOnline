@@ -1,22 +1,7 @@
-// "bio": "Bác sĩ Nguyễn Văn B có 3 năm kinh nghiệm trong lĩnh vực Ngoại tổng quát, Tim mạch, Thần kinh."
-// "degree": "CKII"
-// "experience": 3 
-// "id": 2, 
-// "specialties": [Array] 
-// "user": [Object]
-
-import { View, Text, ScrollView } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import React, { useEffect, useState } from 'react';
 import {
-    Avatar,
-    Button,
-    Card,
-    Chip,
-    Divider,
-    Icon,
-    List,
-    Surface,
-    useTheme,
+    Button, Card, Chip, Icon, List,
 } from 'react-native-paper';
 import Apis, { endpoints } from "../../configs/Apis";
 import ProfileHeader from "../../components/User/Profile/ProfileHeader";
@@ -24,111 +9,111 @@ import SectionCard from "../../components/User/Profile/SectionCard";
 import ProfileInfoRow from "../../components/User/Profile/ProfileInforow";
 import { useNavigation } from '@react-navigation/native';
 import specialtyIcons from "../../styles/LogoSpecialty";
-// "id": 2,
-// "first_name": "A",
-// "last_name": "Nguyễn Văn",
-// "avatar": null,
-// "phone": "0900111000",
-// "email": "bsnguyenvana@gmail.com",
-// "username": "nguyenvana1",
-// "gender": "male",
-// "role": "doctor",
-// "profile": {
-//     "id": 1,
-//     "specialties": [
-//         {
-//             "id": 1,
-//             "name": "Nội tổng quát",
-//             "description": "Khám và điều trị các bệnh nội khoa tổng quát"
-//         },
-//         {
-//             "id": 5,
-//             "name": "Chấn thương chỉnh hình",
-//             "description": "Điều trị gãy xương, khớp và cơ"
-//         }
-//     ],
-//     "degree": "Giáo sư Hugy nguyesn",
-//     "experience": 10,
-//     "bio": null,
-//     "workday_set": []
-// }
+import COLORS from "../../styles/Colors";
+import AppHeader from "../../components/AppHeader";
+import { fetchWithAuth } from "../../utils/apiHelper";
+import { useSnackbar } from "../../utils/contexts/SnackBarContext";
+import LoadingScreen from "../../components/LoadingScreen";
+import AppButton from "../../components/AppButton";
+
+const degreeConfig = {
+    "BS": { label: "Bác sĩ", icon: "stethoscope" },
+    "CKI": { label: "Bác sĩ chuyên khoa I", icon: "certificate-outline" },
+    "CKII": { label: "Bác sĩ chuyên khoa II", icon: "certificate" },
+    "ThS": { label: "Thạc sĩ", icon: "school-outline" },
+    "PGS.TS": { label: "Phó giáo sư - Tiến sĩ", icon: "school" },
+};
 
 const DoctorDetail = ({ route }) => {
-    const theme = useTheme();
     const navigation = useNavigation();
     const { doctorId } = route.params;
-
-    const degreeConfig = {
-        "BS": { label: "Bác sĩ", icon: "stethoscope" },
-        "CKI": { label: "Bác sĩ chuyên khoa I", icon: "certificate-outline" },
-        "CKII": { label: "Bác sĩ chuyên khoa II", icon: "certificate" },
-        "ThS": { label: "Thạc sĩ", icon: "school-outline" },
-        "PGS.TS": { label: "Phó giáo sư - Tiến sĩ", icon: "school" },
-    };
-
     const [detailDoctor, setDetailDoctor] = useState({});
-    const LoadDetailDoctor = async (id) => {
-        try {
-            const res = await Apis.get(endpoints.doctorDetail(id));
-            console.log("Chi tiết bác sĩ:", res.data);
-            setDetailDoctor(res.data);
-        } catch (err) {
-            console.error("Lỗi khi tải chi tiết bác sĩ:", err);
-            return null;
-        }
+    const [loading, setLoading] = useState(false);
+    const { showSnackbar } = useSnackbar();
+
+    const loadDetailDoctor = async (id) => {
+        await fetchWithAuth(
+            endpoints.doctorDetail(id),
+            (data) => {
+                setDetailDoctor(data);
+                console.log("Doctor detail loaded:", data);
+            },
+            (errType, errMsg) => {
+                console.error("Error loading doctor detail:", errType, errMsg);
+                showSnackbar("Lỗi khi tải thông tin bác sĩ", "error");
+            }, {}, setLoading
+        );
     };
 
     useEffect(() => {
-        LoadDetailDoctor(doctorId);
+        loadDetailDoctor(doctorId);
     }, [doctorId]);
 
+    if (loading) return <LoadingScreen text="Đang tải thông tin..." />;
+
+
+    const profile = detailDoctor?.profile ?? {};
+
     return (
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <View style={styles.screen}>
+            <AppHeader titles="Chi tiết bác sĩ" onBack={() => {
+                navigation.goBack();
+            }} />
+
             <ScrollView
-                style={{ flex: 1, backgroundColor: theme.colors.background, marginTop: 50 }}
-                contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
+                {/* ── Header ── */}
                 <ProfileHeader user={detailDoctor} />
 
-                <View style={{ flex: 1, flexDirection: 'row', gap: 10, justifyContent: 'space-between' }}>
-                    <SectionCard title="Kinh nghiệm" containerColor={theme.colors.secondaryContainer}>
-                        <Text
-                            variant="displaySmall"
-                            style={{ color: theme.colors.onSecondaryContainer, marginTop: 2 }}
-                        >
-                            {detailDoctor?.profile?.experience ?? 'đang cập nhật'}
-                            <Text variant="bodyMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-                                {' '}năm
+                {/* ── Kinh nghiệm & Trình độ ── */}
+                <View style={styles.rowCards}>
+                    <SectionCard title="Kinh nghiệm" containerColor={COLORS.primaryLight}>
+                        <View style={styles.expRow}>
+                            <Text style={styles.expNumber}>
+                                {profile?.experience ?? '—'}
                             </Text>
-                        </Text>
+                            <Text style={styles.expUnit}>năm</Text>
+                        </View>
                     </SectionCard>
-                    <SectionCard title="Trình độ" icon="school" containerColor={theme.colors.tertiaryContainer}>
-                        <Text variant="titleMedium">
-                            {
-                                degreeConfig[detailDoctor?.profile?.degree]?.label ??
-                                detailDoctor?.profile?.degree ??
-                                "Đang cập nhật"
-                            }
-                        </Text>
+
+                    <SectionCard title="Trình độ" icon="school" containerColor={COLORS.secondaryLight}>
+                        <View style={styles.degreeRow}>
+                            <Icon
+                                source={degreeConfig[profile?.degree]?.icon ?? "certificate-outline"}
+                                size={20}
+                                color={COLORS.info}
+                            />
+                            <Text style={styles.degreeText}>
+                                {degreeConfig[profile?.degree]?.label ?? profile?.degree ?? "Đang cập nhật"}
+                            </Text>
+                        </View>
                     </SectionCard>
                 </View>
-                <Card mode="elevated" elevation={1}>
+
+                {/* ── Giới thiệu ── */}
+                <Card style={styles.card}>
                     <Card.Title
                         title="Giới thiệu"
-                        titleVariant="labelLarge"
-                        left={(props) => <List.Icon {...props} icon="account-circle-outline" />}
+                        titleStyle={styles.cardTitle}
+                        left={(props) => (
+                            <List.Icon {...props} icon="account-circle-outline" color={COLORS.primary} />
+                        )}
                     />
                     <Card.Content>
-                        <Text variant="bodyMedium" style={{ lineHeight: 22 }}>
-                            {detailDoctor?.profile?.bio ?? 'Bác sĩ chưa cập nhật thông tin giới thiệu.'}
+                        <Text style={styles.bioText}>
+                            {profile?.bio ?? 'Bác sĩ chưa cập nhật thông tin giới thiệu.'}
                         </Text>
                     </Card.Content>
                 </Card>
+
+                {/* ── Chuyên khoa ── */}
                 <ProfileInfoRow
                     title="Chuyên khoa"
                     icon="stethoscope"
-                    items={detailDoctor?.profile?.specialties.map((spec, index) => ({
+                    items={profile?.specialties?.map((spec, index) => ({
                         key: spec.id,
                         title: spec.name,
                         icon: specialtyIcons[spec.id] ?? "medical-bag",
@@ -139,56 +124,167 @@ const DoctorDetail = ({ route }) => {
                                 style={{
                                     alignSelf: 'center',
                                     backgroundColor: index === 0
-                                        ? theme.colors.primaryContainer
-                                        : theme.colors.surfaceVariant,
+                                        ? COLORS.primaryLight
+                                        : COLORS.divider,
                                 }}
                                 textStyle={{
-                                    color: index === 0
-                                        ? theme.colors.onPrimaryContainer
-                                        : theme.colors.onSurfaceVariant,
+                                    color: index === 0 ? COLORS.primary : COLORS.textMuted,
+                                    fontWeight: index === 0 ? '700' : '400',
                                 }}
                             >
                                 {index === 0 ? 'Chính' : 'Phụ'}
                             </Chip>
                         )
-                    }))}
+                    })) ?? []}
                 />
+
+                {/* ── Thông tin liên hệ ── */}
                 <ProfileInfoRow
                     title="Thông tin liên hệ"
                     icon="card-account-details-outline"
                     items={[
                         {
                             key: 'email',
-                            title: detailDoctor?.email,
+                            title: detailDoctor?.email ?? 'Chưa cập nhật',
                             description: 'Email',
                             icon: 'email-outline',
                         },
                         {
                             key: 'phone',
-                            title: detailDoctor?.phone,
+                            title: detailDoctor?.phone ?? 'Chưa cập nhật',
                             description: 'Điện thoại',
                             icon: 'phone-outline',
                         }
                     ]}
                 />
             </ScrollView>
-            <View style={{ marginTop: 90, backgroundColor: 'transparent' }}>
-                {/* ── Book Button ── */}
-                <Button
-                    style={{ marginTop: 90, position: 'absolute', bottom: 36, left: 16, right: 16, marginTop: 70 }}
-                    mode="contained"
-                    icon="calendar-plus"
-                    contentStyle={{ paddingVertical: 6 }}
-                    labelStyle={{ fontSize: 16 }}
-                    onPress={() => {
-                        navigation.navigate("Booking");
-                    }}
-                >
-                    Đặt lịch khám
-                </Button>
-            </View>
+
+            <AppButton
+                label="Đặt lịch khám"
+                icon="calendar-plus"
+                onPress={() => {
+                    navigation.navigate("Booking", {
+                        screen: "Booking",
+                        params: {
+                            doctor: { 
+                                id: detailDoctor.id,
+                                first_name: detailDoctor.first_name,
+                                last_name: detailDoctor.last_name,
+                                email: detailDoctor.email,
+                                phone: detailDoctor.phone,
+                             },
+                            specialty: profile.specialties[0],
+                        }
+                    });
+                }}
+                style={styles.bookingBtn}
+                labelStyle={styles.bookingBtnLabel}
+            />
         </View>
     );
-}
+};
+
+const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: COLORS.bg,
+    },
+    scroll: {
+        flex: 1,
+    },
+    scrollContent: {
+        padding: 16,
+        paddingBottom: 32,
+        gap: 14,
+    },
+
+    // ── Row cards ──
+    rowCards: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+
+    // ── Kinh nghiệm ──
+    expRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 4,
+        marginTop: 4,
+    },
+    expNumber: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: COLORS.primary,
+        lineHeight: 36,
+    },
+    expUnit: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        marginBottom: 4,
+    },
+
+    // ── Trình độ ──
+    degreeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 6,
+        flexWrap: 'wrap',
+    },
+    degreeText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.info,
+        flexShrink: 1,
+    },
+
+    // ── Card giới thiệu ──
+    card: {
+        borderRadius: 16,
+        backgroundColor: COLORS.bgCard,
+        elevation: 1,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    cardTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    bioText: {
+        fontSize: 14,
+        lineHeight: 22,
+        color: COLORS.textSecondary,
+    },
+
+    // ── Booking bar ──
+    bookingBar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: COLORS.white,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        elevation: 8,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+    },
+    bookingBtn: {
+        borderRadius: 14,
+    },
+    bookingBtnContent: {
+        paddingVertical: 6,
+    },
+    bookingBtnLabel: {
+        fontSize: 16,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
+});
 
 export default DoctorDetail;

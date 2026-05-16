@@ -6,7 +6,7 @@ import COLORS from "../../../styles/Colors";
 
 const BLOOD_TYPES = ["A+", "B+", "AB+", "O+", "A-", "B-", "AB-", "O-"];
 
-const MedicalInfoCard = ({ data, updateProfile }) => {
+const MedicalInfoCard = ({ data, updateProfile}) => {
     const p = data.patient ? data.patient : data;
 
     return (
@@ -38,7 +38,7 @@ const MedicalInfoCard = ({ data, updateProfile }) => {
                     </Field>
 
                     <Field label="Dị ứng">
-                        <View style={styles.chipInputRow}>
+                        <View>
                             <StyledInput
                                 placeholder="VD: Penicillin, hải sản..."
                                 value={p.profile.allergy_history ?? ""}
@@ -94,11 +94,6 @@ const styles = StyleSheet.create({
     },
     bloodChipTextActive: {
         color: COLORS.white,
-    },
-    chipInputRow: {
-        flexDirection: 'row',
-        gap: 8,
-        alignItems: 'center',
     },
 });
 

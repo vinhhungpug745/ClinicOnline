@@ -1,5 +1,7 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from cliniconlineapi.models import Appointment, TimeSlot
 from cliniconlineapi.serializers.ServiceNormalSerializer import ServiceNormalSerializer
@@ -13,9 +15,29 @@ class AppointmentSerializer(serializers.ModelSerializer):
                   'reason','symptoms', 'serviceNormal','status']
         extra_kwargs = {
             'status': {
-                'read_only':True
+                'required':False
             }
         }
+
+    def validate_status(self, value):
+        if self.instance:
+            current_status = self.instance.status
+
+            if value not in [Appointment.Status.CANCELED, Appointment.Status.CONFIRMED]:
+                raise serializers.ValidationError("Trạng thái không hợp lệ.")
+
+            if current_status == Appointment.Status.CANCELED and value == Appointment.Status.CONFIRMED:
+                raise serializers.ValidationError("Không thể xác nhận phiếu đã bị hủy.")
+
+            if current_status == Appointment.Status.CONFIRMED and value == Appointment.Status.CANCELED:
+                raise serializers.ValidationError("Không thể hủy phiếu đã được xác nhận.")
+
+        return value
+
+    def validate_time_slot(self, value):
+        if value.status == TimeSlot.Status.BOOKED:
+            raise serializers.ValidationError("Khung giờ này đã được đặt, vui lòng chọn giờ khác.")
+        return value
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -32,6 +54,24 @@ class AppointmentSerializer(serializers.ModelSerializer):
         data["serviceNormal"] = ServiceNormalSerializer(instance.serviceNormal).data
 
         return data
+
+    def create(self, validated_data):
+        from django.db import transaction
+        time_slot = validated_data.get("time_slot")
+
+        with transaction.atomic():
+            slot = TimeSlot.objects.select_for_update().get(pk=time_slot.id)
+
+            if slot.status == TimeSlot.Status.BOOKED:
+                raise serializers.ValidationError("Khung giờ này vừa được đặt, vui lòng chọn giờ khác.")
+
+            appointment = Appointment(**validated_data)
+            appointment.save()
+
+            slot.status = TimeSlot.Status.BOOKED
+            slot.save()
+
+        return appointment
 
 class AppointmentDetailSerializer(AppointmentSerializer):
     class Meta:

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { ScrollView, View, ActivityIndicator } from "react-native";
-import { fetchWithAuth } from "../../utils/apiHelper";
+import { fetchWithAuth, updatePatchWithAuth } from "../../utils/apiHelper";
 import { endpoints } from "../../configs/Apis";
 import AppSnackbar from "../../components/AppSnackbar";
 import SectionTitle from "../../components/Appointment/SectionTilte";
@@ -11,12 +11,18 @@ import Mystyles from "../../styles/Mystyles";
 import { MyUserContext } from "../../utils/contexts/MyUserContext";
 import { Button } from "react-native-paper";
 import AppButton from "../../components/AppButton";
+import AppHeader from "../../components/AppHeader";
+import { useNavigation } from '@react-navigation/native';
 
 const AppointmentDetail = ({ route }) => {
+    const navigation = useNavigation();
     const id = route.params?.id;
     const [appointmentDetail, setAppointmentDetail] = useState(null);
     const [snackbar, setSnackbar] = useState({});
     const { user } = useContext(MyUserContext);
+    const [loading, setLoading] = useState(false);
+
+
     const loadAppointmentDetail = async () => {
         await fetchWithAuth(
             endpoints.appointmentDetail(id),
@@ -29,6 +35,8 @@ const AppointmentDetail = ({ route }) => {
         loadAppointmentDetail();
     }, [id]);
 
+
+
     if (!appointmentDetail) return (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
             <ActivityIndicator size="large" color={COLORS.primary} />
@@ -40,8 +48,37 @@ const AppointmentDetail = ({ route }) => {
     const workDay = slot?.work_day;
     const doctor = appointmentDetail.doctor;
 
+    const changeStatusAppointment = async (id, stutus) => {
+        await updatePatchWithAuth(
+            endpoints.appointmentDetail(id),
+            stutus,
+            (data) => {
+                showSnackbar("Duyệt phiếu thành công", "success")
+            },
+            (type, msg, errData) => {
+                if (type === "client") {
+                    showSnackbar("Duyệt phiếu thất bại!", "error", msg);
+                } else if (type === "server") {
+                    showSnackbar("Lỗi máy chủ!", msg, "error");
+                } else {
+                    showSnackbar("Mất kết nối!", msg, "error");
+                }
+            }, setLoading
+
+        )
+    }
+
+    console.log("role:", user?.role);
+    console.log("status:", appointmentDetail?.status);
+    console.log("check:", user?.role === "doctor" && appointmentDetail?.status === "Pending");
     return (
-        <View style={Mystyles.container}>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg, }}>
+            <AppHeader titles="Chi tiết lịch hẹn" onBack={() => {
+                navigation.goBack();
+            }}>
+
+            </AppHeader>
+
             <ScrollView contentContainerStyle={{ padding: 16 }}>
 
                 {/* ── PHIẾU ĐẶT ── */}
@@ -88,7 +125,7 @@ const AppointmentDetail = ({ route }) => {
                 />
 
             </ScrollView>
-            {user?.role === "doctor" ? (
+            {user?.role === "doctor" && appointmentDetail.status === "Confirmed" && (
                 <>
                     <Button
                         mode="contained"
@@ -103,9 +140,32 @@ const AppointmentDetail = ({ route }) => {
                     </Button>
                 </>
 
-            ) : (
+            )}
+            {user?.role === "doctor" && appointmentDetail.status === "Pending" && (
+                <View style={{ flexDirection: "row", paddingHorizontal: 5 }}>
+                    <View style={{flex:1}}>
+                        <AppButton
+                            type="create"
+                            label={"xác nhận"}
+                            onPress={() => changeStatusAppointment(id, { "status": "Confirmed" })}
+                            loading = {loading}
+                        />
+                    </View>
+                    <View style={{flex:1}}>
+                        <AppButton
+                            type="delete"
+                            label={"từ chối"}
+                            onPress={() => changeStatusAppointment(id, { "status": "Canceled" })}
+                            loading = {loading}
+                        />
+                    </View>
+
+
+                </View>
+            )}
+            {user?.role === "customer" && appointmentDetail.status !== "Confirmed" && (
                 <>
-                    <AppButton type= "delete" onPress={console.log("anh yeu em") }/>
+                    <AppButton type="delete" onPress={console.log("anh yeu em")} />
                     <AppButton type="edit" onPress={console.log("anh yêu em")} />
                 </>
             )}

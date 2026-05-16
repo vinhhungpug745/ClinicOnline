@@ -3,8 +3,8 @@ import random
 import django, os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
 django.setup()
-
 from cliniconlineapi.models import User, StaffProfile, Specialty, ServiceNormal
+
 
 specialties_data = [
     {"name": "Nội tổng quát", "description": "Khám và điều trị các bệnh nội khoa tổng quát"},
@@ -79,9 +79,8 @@ avaterDoctor = [
 ]
 
 
-# Mỗi bác sĩ gán 2-3 chuyên khoa theo pattern cố định (không random để chạy lại không đổi)
 def get_specialties_for_doctor(i, specialties):
-    count = (i % 2) + 2  # 2 hoặc 3 chuyên khoa
+    count = (i % 2) + 2
     return [specialties[(i + j) % len(specialties)] for j in range(count)]
 
 for i, letter in enumerate(alphabet):
@@ -107,8 +106,9 @@ for i, letter in enumerate(alphabet):
             user=user,
             degree=degrees[i % len(degrees)],
             experience=experience,
-            bio=f"Bác sĩ Nguyễn Văn {letter} có {experience} năm kinh nghiệm trong lĩnh vực {specialty_names}.",
-            price=round(random.uniform(100000, 1000000), 0)  # ← THÊM VÀO ĐÂY
+            bio=f"Bác sĩ Nguyễn Văn {letter} là chuyên gia với hơn {experience} năm kinh nghiệm trong lĩnh vực {specialty_names}. "
+                f"Với quá trình đào tạo bài bản và tận tâm trong công việc, bác sĩ đã trực tiếp thăm khám và điều trị cho hàng nghìn bệnh nhân. "
+                f"Bác sĩ luôn đặt sức khỏe và sự an toàn của người bệnh lên hàng đầu, mang đến dịch vụ y tế chất lượng cao và đáng tin cậy.",
         )
 
         # Gán nhiều chuyên khoa
