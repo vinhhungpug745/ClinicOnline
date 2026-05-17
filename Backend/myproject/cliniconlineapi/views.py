@@ -15,12 +15,14 @@ from cliniconlineapi.serializers.ChatBoxSerializer import GeminiChatSerializer
 from cliniconlineapi.serializers.MedicalRecordSerializer import MedicalRecordUpdateSerializer, \
     MedicalRecordCreateSerializer, MedicalRecordDetailSerializer, MedicalRecordListSerializer
 from cliniconlineapi.serializers.MedicalSerializer import PrescriptionDetailedSerializer, PrescriptionCreateSerializer, \
-    MedicineSerializer
+    MedicineSerializer, PrescriptionUpdateSerializer
+from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer, TestResultCreateSerializer, \
+    TestResultUpdateSerializer, TestResultBulkCreateSerializer
 from cliniconlineapi.serializers.userserializer import WorkDaySerializer, TimeSlotSerializer, SpecialtySerializer, \
     UserSerializer, TimeSlotNormal, WorkDayLiteSerializer
 import google.generativeai as genai
 
-from cliniconlineapi.validators import MedicalRecordDataValidator
+from cliniconlineapi.validators import MedicalRecordDataValidator, PrescriptionDataValidator, TestResultDataValidator
 
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -315,21 +317,21 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
 
         return [permission.IsAuthenticated()]
 
-    """Xem danh sách thuốc"""
+
     def list(self, request):
         queryset = self.queryset
         serializer = MedicineSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
-    """Nhân viên y tế thêm thuốc mới"""
+
     def create(self,request):
         s = MedicineSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         s.save()
         return Response(s.data,status=status.HTTP_201_CREATED)
 
-    """NV y tế cập nhật stock"""
+
     @action(methods=["PATCH"],detail=True, url_path="update_stock")
     def update_stock(self,request,pk=None):
         medicine = get_object_or_404(Medicine, pk=pk,active=True)
@@ -338,7 +340,7 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
         s.save()
         return Response(s.data, status=status.HTTP_200_OK)
 
-    """ Thuốc sắp hết """
+
     @action(methods=["GET"], detail=False, url_path="low_stock")
     def low_stock(self,request):
         medicines = Medicine.objects.filter(
@@ -347,7 +349,7 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
         )
         return Response(MedicineSerializer(medicines, many=True).data)
 
-    """ Thuốc sắp hết hạn """
+
     @action(methods=["GET"], detail=False, url_path="expiring_soon")
     def expiring_soon(self,request):
         threshold = date.today() + timedelta(days=30)
@@ -358,9 +360,17 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
         return Response(MedicineSerializer(medicines, many=True).data)
 
 
-class PrescriptionViewSet(viewsets.ViewSet, generics.ListAPIView):
+class PrescriptionViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
     queryset = Prescription.objects.filter(active=True)
+    serializer_class = PrescriptionDetailedSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == 'create_prescription':
+            return PrescriptionCreateSerializer
+        if self.action == 'update_prescription':
+            return PrescriptionUpdateSerializer
+        return PrescriptionDetailedSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -376,22 +386,14 @@ class PrescriptionViewSet(viewsets.ViewSet, generics.ListAPIView):
             return qs.filter(medical_record__appointment__customer=user)
         return qs.none()
 
-    def list(self,request):
-        queryset = self.queryset
+    def list(self,request, *args, **kwargs):
+        queryset = self.get_queryset()
         serializer = PrescriptionDetailedSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(
-        methods=['POST'],
-        detail=False,
-        url_path='create',
-        permission_classes=[permission.IsDoctorRole]
-    )
-    def create_prescription(self,request):
-        serializer = PrescriptionCreateSerializer(
-                            data=request.data,
-                            context={'request': request}
-                          )
+
+    def create(self,request, *args, **kwargs):
+        serializer = PrescriptionCreateSerializer(data=request.data,context={'request': request})
         serializer.is_valid(raise_exception=True)
         prescription = serializer.save()
         return Response(
@@ -399,16 +401,109 @@ class PrescriptionViewSet(viewsets.ViewSet, generics.ListAPIView):
                 status=status.HTTP_201_CREATED
                 )
 
+    def partial_update(self, request, pk=None):
+        prescription = get_object_or_404(Prescription, pk=pk, active=True)
+
+        # Validate permission
+        validator = PrescriptionDataValidator()
+        validator.validate_update_permission(prescription, request.user)
+
+        serializer = PrescriptionUpdateSerializer(
+            prescription,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            PrescriptionDetailedSerializer(prescription).data,
+            status=status.HTTP_200_OK
+        )
+
+#Kết quả xét nghiệm
+class TestResultViewSet(viewsets.ViewSet,generics.ListCreateAPIView,generics.RetrieveDestroyAPIView):
+    queryset = TestResult.objects.filter(active=True)
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = TestResultSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return TestResultCreateSerializer
+        if self.action == 'partial_update':
+            return TestResultUpdateSerializer
+        return TestResultSerializer
+
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = self.queryset.select_related(
+            'medical_record__appointment__customer',
+            'medical_record__appointment__doctor'
+        )
+        if user.role == "doctor":
+            return qs.filter(medical_record__appointment__doctor=user)
+        elif user.role == "customer":
+            return qs.filter(medical_record__appointment__customer=user)
+        return qs.none()
+
+    def list(self,request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = TestResultSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self,request, *args, **kwargs):
+        serializer = TestResultBulkCreateSerializer(data=request.data,context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        testresult = serializer.save()
+        return Response(
+            TestResultSerializer(testresult,many=True).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    def partial_update(self, request, pk=None):
+        test_result = get_object_or_404(TestResult, pk=pk, active=True)
+
+        validator = TestResultDataValidator()
+        validator.validate_update_permission(test_result, request.user)
+
+        serializer = TestResultUpdateSerializer(
+            test_result,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            TestResultSerializer(test_result).data,
+            status=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, pk=None, *args, **kwargs):
+        test_result = get_object_or_404(TestResult, pk=pk, active=True)
+
+        validator = TestResultDataValidator()
+        validator.validate_update_permission(test_result, request.user)
+
+        test_result.delete()
+        return Response(
+            {'message': 'Xóa kết quả xét nghiệm thành công'},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 #Bệnh án
-class MedicalRecordViewSet(viewsets.ViewSet, generics.ListAPIView):
+class MedicalRecordViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generics.RetrieveAPIView):
     queryset = MedicalRecord.objects.filter(active=True)
     serializer_class = MedicalRecordListSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        qs = self.queryset.select_related('appointment__customer','appointment__doctor')
+        qs = (self.queryset.select_related(
+                'appointment__customer',
+                'appointment__doctor'
+                ).prefetch_related('prescription','test_results'))
         # Bác sĩ chỉ thấy bệnh án của mình
         if user.role == "doctor":
             return qs.filter(appointment__doctor=user)
@@ -418,18 +513,28 @@ class MedicalRecordViewSet(viewsets.ViewSet, generics.ListAPIView):
 
         return qs.none()
 
-    def list(self, request):
-        queryset = self.queryset
+    def list(self, request,*args, **kwargs):
+        queryset = self.get_queryset()
         serializer = MedicalRecordListSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(
-        methods=['GET'],
-        detail=True,
-        url_path='detail',
-        permission_classes=[permissions.IsAuthenticated]
-    )
-    def get_detail(self, request, pk):
+    def create(self, request,*args, **kwargs):
+        serializer = MedicalRecordCreateSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            medical_record = serializer.save()
+            return Response(
+                MedicalRecordDetailSerializer(
+                    medical_record,
+                    context={'request': request}
+                ).data,
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, pk):
         medical_record = get_object_or_404(
             MedicalRecord.objects.prefetch_related(
                 'test_results',
@@ -447,36 +552,7 @@ class MedicalRecordViewSet(viewsets.ViewSet, generics.ListAPIView):
         )
 
 
-    @action(
-        methods=['POST'],
-        detail=False,
-        url_path='create',
-        permission_classes=[permission.IsDoctorRole]
-    )
-    def create_medical_record(self, request):
-        serializer = MedicalRecordCreateSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        if serializer.is_valid():
-            medical_record = serializer.save()
-            return Response(
-                MedicalRecordDetailSerializer(
-                    medical_record,
-                    context={'request': request}
-                ).data,
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-    @action(
-        methods=['PATCH'],
-        detail=True,
-        url_path='update',
-        permission_classes=[permission.IsDoctorRole]
-    )
-    def update_medical_record(self, request, pk):
+    def partial_update(self, request, pk):
         medical_record = get_object_or_404(MedicalRecord, pk=pk, active=True)
 
         validator = MedicalRecordDataValidator()
@@ -493,45 +569,33 @@ class MedicalRecordViewSet(viewsets.ViewSet, generics.ListAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Kê đơn và gửi trực tuyến cho bệnh nhân
     @action(
-        methods=['POST'],
-        detail=True,
-        url_path='send-prescription',
+        methods=['GET'],
+        detail=False,
+        url_path='search',
         permission_classes=[permission.IsDoctorRole]
     )
-    def send_prescription(self, request, pk):
-        medical_record = get_object_or_404(
-            MedicalRecord, pk=pk, active=True
-        )
+    def search_by_phone(self, request):
+        phone = request.query_params.get('phone', '').strip()
 
-        # Kiểm tra đã có đơn chưa
-        if hasattr(medical_record, 'prescription') and medical_record.prescription:
+        if not phone:
             return Response(
-                {'detail': 'Bệnh án này đã có đơn thuốc'},
+                {'error': 'Vui lòng nhập số điện thoại'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = PrescriptionCreateSerializer(
-            data=request.data,
-            context={'request': request, 'medical_record': medical_record}
-        )
-        if serializer.is_valid():
-            prescription = serializer.save(medical_record=medical_record)
+        qs = MedicalRecord.objects.filter(active=True) \
+            .select_related('appointment__customer', 'appointment__doctor') \
+            .prefetch_related('prescription') \
+            .filter(appointment__customer__phone__icontains=phone)
 
-            # Gửi đơn thuốc cho bệnh nhân (email/notification)
-            self._send_prescription_to_patient(medical_record, prescription)
-
+        if not qs.exists():
             return Response(
-                PrescriptionDetailedSerializer(prescription).data,
-                status=status.HTTP_201_CREATED
+                {'error': 'Không tìm thấy bệnh án với số điện thoại này'},
+                status=status.HTTP_404_NOT_FOUND
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def _send_prescription_to_patient(self, medical_record, prescription):
-        """Gửi đơn thuốc cho bệnh nhân"""
-        customer = medical_record.appointment.customer
-        # TODO: tích hợp email/notification service
-        # send_email(customer.email, prescription)
-        # send_notification(customer.id, prescription)
-        pass
+        return Response(
+            MedicalRecordListSerializer(qs, many=True).data,
+            status=status.HTTP_200_OK
+        )
