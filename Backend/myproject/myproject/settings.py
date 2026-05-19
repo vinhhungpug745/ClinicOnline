@@ -27,8 +27,6 @@ SECRET_KEY = 'django-insecure-p5!==nsqbh_%ms+#xaw$ih+*i&mtm651h4^x+gpna=at47y6e_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -85,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'cliniconline',
         'USER': 'root',
-        'PASSWORD': 'Abc123',
+        'PASSWORD': '123456',
         'HOST': '' # mặc định localhost
     }
 }

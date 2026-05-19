@@ -11,6 +11,7 @@ router.register('chatbox',views.GeminiChatViewSet, basename='chatbox')
 router.register('medicines', views.MedicineViewSet, basename='medicine')
 router.register('prescriptions', views.PrescriptionViewSet, basename='prescription')
 router.register('medical-records', views.MedicalRecordViewSet, basename='medical-record')
+router.register('test-results', views.TestResultViewSet, basename='test-result')
 
 urlpatterns = [
     path('', include(router.urls)),

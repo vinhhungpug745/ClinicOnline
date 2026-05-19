@@ -3,28 +3,36 @@ from datetime import date
 from django.db import transaction
 from rest_framework import serializers
 
-from cliniconlineapi.models import MedicalRecord, Appointment, Prescription, PrescriptionDetail
-from cliniconlineapi.serializers.MedicalSerializer import PrescriptionCreateSerializer, PrescriptionDetailedSerializer
-from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer
+from cliniconlineapi.models import MedicalRecord, Appointment, Prescription, PrescriptionDetail, TestResult
+from cliniconlineapi.serializers.MedicalSerializer import PrescriptionCreateSerializer, PrescriptionDetailedSerializer,PrescriptionNestedCreateSerializer
+from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer, TestResultCreateSerializer, \
+    TestResultNestedCreateSerializer
 from cliniconlineapi.validators import MedicalRecordDataValidator
 
 
 class MedicalRecordListSerializer(serializers.ModelSerializer):
     customer_name = serializers.SerializerMethodField()
+    doctor_id = serializers.IntegerField(source='appointment.doctor.id',read_only=True)
     doctor_name = serializers.SerializerMethodField()
     has_prescription = serializers.SerializerMethodField()
+    has_test_result = serializers.SerializerMethodField()
+    test_result_count = serializers.SerializerMethodField()
+
 
     class Meta:
         model = MedicalRecord
         fields = [
             'id',
             'customer_name',
+            'doctor_id',
             'doctor_name',
             'diagnosis',
             'symptoms',
             'follow_up_date',
             'has_prescription',
-            'created_date',
+            'has_test_result',
+            'test_result_count',
+            'created_date'
         ]
 
     def get_customer_name(self, obj):
@@ -34,7 +42,19 @@ class MedicalRecordListSerializer(serializers.ModelSerializer):
         return obj.appointment.doctor.get_full_name()
 
     def get_has_prescription(self, obj):
-        return hasattr(obj, 'prescription') and obj.prescription is not None
+        try:
+            return obj.prescription is not None
+        except Prescription.DoesNotExist:
+            return False
+
+    def get_has_test_result(self, obj):
+        try:
+            return obj.test_results is not None
+        except TestResult.DoesNotExist:
+            return False
+
+    def get_test_result_count(self, obj):
+        return obj.test_results.count()
 
 class MedicalRecordDetailSerializer(serializers.ModelSerializer):
     customer_info = serializers.SerializerMethodField()
@@ -117,8 +137,9 @@ class MedicalRecordCreateSerializer(serializers.ModelSerializer):
         source='appointment',
         write_only=True
     )
-    # Optional - bác sĩ có thể kê đơn luôn hoặc kê sau
-    prescription = PrescriptionCreateSerializer(required=False)
+
+    prescription = PrescriptionNestedCreateSerializer(required=False)
+    test_results = TestResultNestedCreateSerializer(many=True, required=False)
 
     class Meta:
         model = MedicalRecord
@@ -127,6 +148,7 @@ class MedicalRecordCreateSerializer(serializers.ModelSerializer):
             'diagnosis', 'symptoms',
             'medical_notes', 'follow_up_date',
             'prescription',
+            'test_results'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -161,28 +183,37 @@ class MedicalRecordCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         prescription_data = validated_data.pop('prescription',None)
+        test_results_data = validated_data.pop('test_results', [])
         appointment = validated_data.get('appointment')
         with transaction.atomic():
-            #medical_record = MedicalRecord.objects.create(customer=appointment.customer,**validated_data)
             medical_record = MedicalRecord.objects.create(
                 appointment=appointment,
                 diagnosis=validated_data.get('diagnosis'),
-                symptoms=validated_data.get('symptoms', ''),
-                medical_notes=validated_data.get('medical_notes') or '',
+                symptoms=validated_data.get('symptoms'),
+                medical_notes=validated_data.get('medical_notes'),
                 follow_up_date=validated_data.get('follow_up_date')
             )
+            for test in test_results_data:
+                TestResult.objects.create(
+                    medical_record=medical_record,
+                    test_name=test['test_name'],
+                    result=test['result']
+                )
+
             if prescription_data:
                 details_data = prescription_data.pop('details',[])
                 prescription = Prescription.objects.create(
                     medical_record=medical_record,
-                    instruction_notes=prescription_data.get('instruction_notes', '')
+                    instruction_notes=prescription_data.get('instruction_notes')
                 )
                 for detail in details_data:
                     medicine = detail['medicine']
                     PrescriptionDetail.objects.create(
                         prescription=prescription,
-                        unit_price=medicine.price,
-                        **detail
+                        medicine=medicine,
+                        quantity=detail['quantity'],
+                        dosage=detail['dosage'],
+                        unit_price=medicine.price
                     )
                     medicine.stock -= detail['quantity']
                     medicine.save(update_fields=['stock'])

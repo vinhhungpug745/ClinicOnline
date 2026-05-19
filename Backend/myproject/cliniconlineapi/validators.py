@@ -389,6 +389,16 @@ class PrescriptionDetailMedicineStockValidator:
                 f"Yêu cầu {quantity}, còn {medicine.stock} {medicine.unit}."
             )
 
+class PrescriptionCreatePermissionValidator:
+    def __call__(self, medical_record, user):
+        if medical_record.appointment.doctor != user:
+            raise ValidationError("Bạn không phải bác sĩ phụ trách hồ sơ này")
+
+class PrescriptionUpdatePermissionValidator:
+    def __call__(self, prescription, user):
+        if prescription.medical_record.appointment.doctor != user:
+            raise ValidationError("Bạn không có quyền sửa đơn thuốc này")
+
 
 class PrescriptionDataValidator:
     def __init__(self):
@@ -398,6 +408,8 @@ class PrescriptionDataValidator:
         self.dosage_validator = PrescriptionDetailDosageValidator()
         self.unit_price_validator = PrescriptionDetailUnitPriceValidator()
         self.medicine_stock_validator = PrescriptionDetailMedicineStockValidator()
+        self.create_permission_validator = PrescriptionCreatePermissionValidator()
+        self.update_permission_validator = PrescriptionUpdatePermissionValidator()
 
     def validate_notes(self, value):
         self.instruction_notes_validator(value)
@@ -416,6 +428,12 @@ class PrescriptionDataValidator:
 
     def validate_medicine_stock(self, medicine, quantity):
         self.medicine_stock_validator(medicine, quantity)
+
+    def validate_create_permission(self, medical_record, user):
+        self.create_permission_validator(medical_record, user)
+
+    def validate_update_permission(self, prescription, user):
+        self.update_permission_validator(prescription, user)
 
 # ========================== MedicalRecord VALIDATORS ==============================
 class MedicalRecordDiagnosisValidator:
@@ -532,3 +550,76 @@ class MedicalRecordDataValidator:
 
     def validate_update_permission(self, medical_record, user):
         self.update_permission_validator(medical_record, user)
+
+# ========================== TestResult VALIDATORS ==============================
+
+class TestResultNameValidator:
+    MIN_LENGTH = 3
+    MAX_LENGTH = 200
+
+    def __call__(self, value):
+        if not value:
+            return
+        errors = []
+        if len(value.strip()) < self.MIN_LENGTH:
+            errors.append(f"Tên xét nghiệm tối thiểu {self.MIN_LENGTH} ký tự")
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Tên xét nghiệm tối đa {self.MAX_LENGTH} ký tự")
+        if has_xss_patterns(value):
+            errors.append("Tên xét nghiệm chứa nội dung không hợp lệ")
+        if has_dangerous_keywords(value):
+            errors.append("Tên xét nghiệm chứa từ khóa nguy hiểm")
+        if errors:
+            raise ValidationError(errors)
+
+
+class TestResultValueValidator:
+    MIN_LENGTH = 1
+    MAX_LENGTH = 5000
+
+    def __call__(self, value):
+        if not value:
+            return
+        errors = []
+        if len(value.strip()) < self.MIN_LENGTH:
+            errors.append("Kết quả xét nghiệm không được để trống")
+        if len(value) > self.MAX_LENGTH:
+            errors.append(f"Kết quả tối đa {self.MAX_LENGTH} ký tự")
+        if has_xss_patterns(value):
+            errors.append("Kết quả chứa nội dung không hợp lệ")
+        if has_dangerous_keywords(value):
+            errors.append("Kết quả chứa từ khóa nguy hiểm")
+        if errors:
+            raise ValidationError(errors)
+
+
+class TestResultCreatePermissionValidator:
+    def __call__(self, medical_record, user):
+        if medical_record.appointment.doctor != user:
+            raise ValidationError("Bạn không phải bác sĩ phụ trách hồ sơ này")
+
+
+class TestResultUpdatePermissionValidator:
+    def __call__(self, test_result, user):
+        if test_result.medical_record.appointment.doctor != user:
+            raise ValidationError("Bạn không có quyền sửa kết quả xét nghiệm này")
+
+
+class TestResultDataValidator:
+    def __init__(self):
+        self.name_validator = TestResultNameValidator()
+        self.result_validator = TestResultValueValidator()
+        self.create_permission_validator = TestResultCreatePermissionValidator()
+        self.update_permission_validator = TestResultUpdatePermissionValidator()
+
+    def validate_test_name(self, value):
+        self.name_validator(value)
+
+    def validate_result(self, value):
+        self.result_validator(value)
+
+    def validate_create_permission(self, medical_record, user):
+        self.create_permission_validator(medical_record, user)
+
+    def validate_update_permission(self, test_result, user):
+        self.update_permission_validator(test_result, user)

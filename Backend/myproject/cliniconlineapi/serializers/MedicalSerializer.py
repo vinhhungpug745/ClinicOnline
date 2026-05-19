@@ -119,7 +119,6 @@ class PrescriptionDetailItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrescriptionDetail
         fields = [
-            'id',
             'medicine_name',
             'medicine_unit',
             'quantity',
@@ -166,7 +165,7 @@ class PrescriptionDetailedSerializer(serializers.ModelSerializer):
     def get_detail_count(self, obj):
         return obj.details.count()
 
-#Tạo 1 đơn thuốc
+#Tạo đơn thuốc khi đã có hồ sơ bênh án
 class PrescriptionCreateSerializer(serializers.ModelSerializer):
     medical_record_id = serializers.PrimaryKeyRelatedField(
         queryset=MedicalRecord.objects.all(),
@@ -182,12 +181,6 @@ class PrescriptionCreateSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.validator = PrescriptionDataValidator()
-
-    # def validate(self, attrs):
-    #     medical_record = attrs.get('medical_record')
-    #     request = self.context.get('request')
-    #     self.validator.validate_create_permission(medical_record,request.user)
-    #     return attrs
 
     def validate_medical_record_id(self, medical_record):
         if hasattr(medical_record, 'prescription'):
@@ -210,6 +203,13 @@ class PrescriptionCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Thuốc bị trùng trong đơn")
         return value
 
+    def validate(self, attrs):
+        #bác sĩ phụ trách mới được tạo
+        medical_record = attrs.get('medical_record')
+        request = self.context.get('request')
+        self.validator.validate_create_permission(medical_record, request.user)
+        return attrs
+
     def create(self, validated_data):
         details_data = validated_data.pop('details')
         with transaction.atomic():
@@ -218,9 +218,92 @@ class PrescriptionCreateSerializer(serializers.ModelSerializer):
                 medicine = detail['medicine']
                 PrescriptionDetail.objects.create(
                     prescription=prescription,
-                    unit_price=medicine.price,
-                    **detail
+                    medicine=medicine,
+                    quantity=detail['quantity'],
+                    dosage=detail['dosage'],
+                    unit_price=medicine.price
                 )
                 medicine.stock -= detail['quantity']
                 medicine.save(update_fields=['stock'])
         return prescription
+
+#tạo đơn thuốc trong hồ sơ bệnh án
+class PrescriptionNestedCreateSerializer(serializers.ModelSerializer):
+    details = PrescriptionDetailCreateSerializer(many=True, required=True)
+
+    class Meta:
+        model = Prescription
+        fields = ['instruction_notes', 'details']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validator = PrescriptionDataValidator()
+
+    def validate_instruction_notes(self, value):
+        self.validator.instruction_notes_validator(value)
+        return value
+
+    def validate_details(self, value):
+        if not value:
+            raise serializers.ValidationError("Đơn thuốc phải có ít nhất 1 thuốc")
+        medicine_ids = [d['medicine'].id for d in value]
+        if len(medicine_ids) != len(set(medicine_ids)):
+            raise serializers.ValidationError("Thuốc bị trùng trong đơn")
+        return value
+
+class PrescriptionUpdateSerializer(serializers.ModelSerializer):
+    details = PrescriptionDetailCreateSerializer(many=True, required=False)
+
+    class Meta:
+        model = Prescription
+        fields = ['instruction_notes', 'details']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.validator = PrescriptionDataValidator()
+
+    def validate_instruction_notes(self, value):
+        self.validator.validate_notes(value)
+        return value
+
+    def validate_details(self, value):
+        if value:
+            self.validator.validate_details(value)
+            medicine_ids = [d['medicine'].id for d in value]
+            if len(medicine_ids) != len(set(medicine_ids)):
+                raise serializers.ValidationError("Thuốc bị trùng trong đơn")
+        return value
+
+    def update(self, instance, validated_data):
+        details_data = validated_data.pop('details', None)
+        instance.instruction_notes = validated_data.get(
+            'instruction_notes', instance.instruction_notes
+        )
+        instance.save()
+
+        if details_data is not None:
+            with transaction.atomic():
+                # Hoàn trả stock cũ trước khi xóa
+                for old_detail in instance.details.all():
+                    medicine = old_detail.medicine
+                    medicine.stock += old_detail.quantity
+                    medicine.save(update_fields=['stock'])
+
+                # Xóa details cũ
+                instance.details.all().delete()
+
+                # Tạo details mới
+                for detail in details_data:
+                    medicine = detail['medicine']
+                    self.validator.validate_medicine_stock(medicine, detail['quantity'])
+                    PrescriptionDetail.objects.create(
+                        prescription=instance,
+                        medicine=medicine,
+                        quantity=detail['quantity'],
+                        dosage=detail['dosage'],
+                        unit_price=medicine.price
+                    )
+                    medicine.stock -= detail['quantity']
+                    medicine.save(update_fields=['stock'])
+
+        return instance
