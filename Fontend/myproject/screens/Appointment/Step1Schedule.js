@@ -80,6 +80,7 @@ const Step1Schedule = ({ doctor, specialty }) => {
         await fetchWithAuth(
             endpoints.doctorspecialty(specialtyId),
             (data) => {
+                console.log(data)
                 setDoctors(formatDoctors(data))
             },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),

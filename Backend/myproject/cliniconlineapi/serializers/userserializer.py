@@ -7,7 +7,6 @@ from cliniconlineapi.models import User, StaffProfile, CustomerProfile, Specialt
 from cliniconlineapi.validators import NameValidator, PhoneNumberValidator, MaxLengthValidator, MinLengthValidator
 from datetime import date, datetime
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -129,6 +128,16 @@ class UserDetailSerializer(UserSerializer):
 
         return instance
 
+class DoctorSerializer(UserSerializer):
+    price = serializers.FloatField(
+        source='staff_profile.price',
+        read_only=True
+    )
+
+    class Meta:
+        model = UserSerializer.Meta.model
+        fields = UserSerializer.Meta.fields + ['price']
+
 class SpecialtySerializer(serializers.ModelSerializer):
     class Meta:
         model = Specialty
@@ -225,7 +234,7 @@ class WorkDaySerializer(WorkDayLiteSerializer):
 class StaffProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffProfile
-        fields = ["id", "specialties", "degree", "experience", "bio"]
+        fields = ["id", "specialties", "degree", "experience", "bio", "price"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

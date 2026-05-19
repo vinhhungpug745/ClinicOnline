@@ -67,8 +67,13 @@ const ListDropDown = ({ title, value, icon, data, onSelect, setPage, Icon }) => 
                                     {/* Email + Phone */}
                                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <Text style={{ fontSize: 11, color: '#94a3b8' }}>✉️</Text>
-                                            <Text style={{ fontSize: 11, color: '#64748b' }}>{item.description}</Text>
+                                            <Text style={{ fontSize: 11, color: '#94a3b8' }}></Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <List.Icon icon="cash" color="#64748b" size={11} />
+                                                <Text style={{ fontSize: 11, color: '#64748b' }}>
+                                                    {new Intl.NumberFormat('vi-VN').format(item.description)} VND
+                                                </Text>
+                                            </View>
                                         </View>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                             <Text style={{ fontSize: 11, color: '#94a3b8' }}>📞</Text>

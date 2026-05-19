@@ -29,7 +29,7 @@ export default StyleSheet.create({
   listContainer: {
     paddingHorizontal: 16,
     marginTop: 15,
-    gap: 10,
+    gap: 16,
     paddingBottom: 8
   },
   card: {

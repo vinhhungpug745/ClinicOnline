@@ -32,7 +32,7 @@ export const formatDoctors = (doctors) => {
         id: doctor.id,
         type: "doctor",
         name: `${doctor.last_name} ${doctor.first_name}`,
-        description: doctor.email,
+        description: doctor.profile?.price,
         specialty: doctor.phone,
     }));
 };

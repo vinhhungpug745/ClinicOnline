@@ -48,6 +48,22 @@ const Chat = () => {
                         <Text style={{ color: isUser ? COLORS.white : COLORS.text }}>
                             {item.text}
                         </Text>
+
+                        <Text
+                            style={{
+                                fontSize: 11,
+                                marginTop: 4,
+                                alignSelf: 'flex-end',
+                                color: isUser
+                                    ? 'rgba(255,255,255,0.7)'
+                                    : COLORS.textMuted,
+                            }}
+                        >
+                            {new Date(Number(item.id)).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                            })}
+                        </Text>
                     </Card.Content>
                 </Card>
             </View>
@@ -76,7 +92,7 @@ const Chat = () => {
                     ListEmptyComponent={
                         <View style={styles.empty}>
                             <Text variant="bodyMedium" style={{ color: COLORS.textMuted, textAlign: 'center' }}>
-                                Để được chẩn đoán chính xác, bạn nên đến gặp bác sĩ tại cơ sở y tế gần nhất. Đừng tự ý dùng thuốc khi chưa có chỉ định nhé! 
+                                Để được chẩn đoán chính xác, bạn nên đến gặp bác sĩ tại cơ sở y tế gần nhất. Đừng tự ý dùng thuốc khi chưa có chỉ định nhé!
                             </Text>
                         </View>
                     }

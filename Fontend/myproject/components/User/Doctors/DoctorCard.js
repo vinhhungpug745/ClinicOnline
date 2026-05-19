@@ -48,29 +48,21 @@ const DoctorCard = ({ item, navigation }) => {
                 </Card.Content>
 
                 <Card.Actions style={StylesDoctorCard.cardActions}>
-                    {/* <Button
-                        mode="contained"
-                        onPress={() => navigation.navigate("DoctorDetail", { doctorId: item.id })}
-                        style={StylesDoctorCard.btn}
-                        labelStyle={StylesDoctorCard.btnLabel}
-                    >
-                        Tư vấn ngay
-                    </Button> */}
                     <AppButton
-    label="Tư vấn ngay"
-    type="book"
-    onPress={() => navigation.navigate("DoctorDetail", { doctorId: item.id })}
-    textColor="#fff"
-    mode="contained"
-    style={{
-        flex: 1,
-        borderRadius: 10,
-        backgroundColor: '#2196F3',
-        marginBottom: 0,
-        marginHorizontal: 0,
-    }}
-    labelStyle={{ fontSize: 15, fontWeight: '600' }}
-/>
+                        label="Tư vấn ngay"
+                        type="book"
+                        onPress={() => navigation.navigate("DoctorDetail", { doctorId: item.id })}
+                        textColor="#fff"
+                        mode="contained"
+                        style={{
+                            flex: 1,
+                            borderRadius: 10,
+                            backgroundColor: '#2196F3',
+                            marginBottom: 0,
+                            marginHorizontal: 0,
+                        }}
+                        labelStyle={{ fontSize: 15, fontWeight: '600' }}
+                    />
                 </Card.Actions>
             </Card>
         </AnimatedPressable>

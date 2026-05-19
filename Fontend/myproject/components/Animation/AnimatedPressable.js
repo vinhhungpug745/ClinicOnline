@@ -33,7 +33,7 @@ const AnimatedPressable = ({
             onStartShouldSetResponder={() => false}  // ← không chặn gesture của children
         >
             {React.cloneElement(children, {
-                onPressIn,   // ← inject vào Card/Button
+                onPressIn,
                 onPressOut,
             })}
         </Animated.View>

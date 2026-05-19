@@ -113,7 +113,12 @@ const Login = ({ navigation, route }) => {
                                     }
                                 });
                             },
-                            (type, msg) => showSnackbar(msg, "error", "Vui lòng thử lại")
+                            (type, message, fieldErrors) => {
+                                if (type === "client") {
+                                    setErrors(fieldErrors || {});
+                                    showSnackbar("Đăng nhặp thất bại!", "error", message);
+                                }
+                            },
                         );
                     }, 500);
                 },
@@ -128,7 +133,7 @@ const Login = ({ navigation, route }) => {
 
     return (
         <View style={{ flex: 1 }}>
-            <AppHeader titles="Đăng nhập tài khoản" onBack={() => {navigation.goBack()}}>
+            <AppHeader titles="Đăng nhập tài khoản" onBack={() => { navigation.goBack() }}>
             </AppHeader>
             <ScrollView style={{ flex: 1, marginTop: 100, paddingHorizontal: 28 }}>
                 <InputField list={infoWithError} user={user} setUser={setUser} setErrors={setErrors} />

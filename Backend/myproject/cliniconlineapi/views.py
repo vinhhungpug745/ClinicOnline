@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from django.db.models import Q
 from oauth2_provider.contrib.rest_framework import permissions
 from rest_framework import viewsets, generics, parsers, status, pagination
 from rest_framework.decorators import action
@@ -17,11 +18,10 @@ from cliniconlineapi.serializers.MedicalRecordSerializer import MedicalRecordUpd
 from cliniconlineapi.serializers.MedicalSerializer import PrescriptionDetailedSerializer, PrescriptionCreateSerializer, \
     MedicineSerializer
 from cliniconlineapi.serializers.userserializer import WorkDaySerializer, TimeSlotSerializer, SpecialtySerializer, \
-    UserSerializer, TimeSlotNormal, WorkDayLiteSerializer
+    WorkDayLiteSerializer, DoctorSerializer
 import google.generativeai as genai
 
 from cliniconlineapi.validators import MedicalRecordDataValidator
-
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
     queryset = User.objects.filter(is_active=True)
@@ -142,11 +142,18 @@ class DoctorProfileViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retr
                 # "staff_profile__work_days__time_slots"
             )
 
-        return User.objects.filter(
+        query = User.objects.filter(
             role=User.Role.DOCTOR
         ).select_related("staff_profile").prefetch_related(
             "staff_profile__specialties"
         )
+
+        q = self.request.GET.get("q", None)
+
+        if q:
+            query = query.filter(Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(staff_profile__specialties__name__icontains=q))
+
+        return query
 
     @action(
         methods=["GET"],
@@ -199,10 +206,6 @@ class AppointmentViewSet(viewsets.ViewSet,
 
         return self.queryset.none()
 
-    def perform_destroy(self, instance):
-        from django.utils import timezone
-        from datetime import timedelta
-
         if instance.status != Appointment.Status.PENDING:
             raise ValidationError("Chỉ có thể xóa lịch hẹn đang chờ xác nhận.")
 
@@ -216,21 +219,34 @@ class AppointmentViewSet(viewsets.ViewSet,
 class SpecialtyViewSet(viewsets.ViewSet, generics.ListAPIView):
     queryset = Specialty.objects.filter(active=True)
     serializer_class = SpecialtySerializer
-    permission_classes = [permission.IsCustomerRole]
+    permission_classes = [permissions.IsAuthenticated]
     pagination_class = paginators.SpecialtyPaninator
 
     @action(methods=["GET"],
             url_path="doctors",
             url_name="doctors",
             detail=True,
-            permission_classes=[permission.IsCustomerRole],
+            permission_classes=[permissions.IsAuthenticated], #chưa quuyen
             pagination_class = paginators.SpecialtyPaninator)
     def specialty_doctors(self, request,pk=None):
-        q = User.objects.filter(role=User.Role.DOCTOR,staff_profile__specialties__id=pk)
-        return Response(UserSerializer(q, many=True).data, status=status.HTTP_200_OK)
+        q = User.objects.select_related('staff_profile').filter(
+            role=User.Role.DOCTOR,
+            staff_profile__specialties__id=pk
+        ).select_related('staff_profile')
+        return Response(DoctorSerializer(q, many=True).data, status=status.HTTP_200_OK)
+
+    def get_queryset(self):
+        query = Specialty.objects.filter(active=True)
+
+        q = self.request.GET.get("q", None)
+
+        if q:
+            query = query.filter(Q(name__icontains=q))
+
+        return query
 
 genai.configure(
-    api_key="AIzaSyBBbel276NVkEA0OpKj1dFjwTqvPIjcNiA"
+    api_key="AIzaSyAN5g621nGyKmHN6ZgQ6NlPM2GfdhzHeLY"
 )
 
 _model = None

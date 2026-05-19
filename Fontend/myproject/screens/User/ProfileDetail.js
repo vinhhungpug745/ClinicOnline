@@ -15,24 +15,39 @@ import { useSnackbar } from "../../utils/contexts/SnackBarContext"
 import AppHeader from "../../components/AppHeader"
 import { useNavigation } from "@react-navigation/native";
 import * as SecureStore from 'expo-secure-store';
+import DoctorProfileCard from "../../components/User/Profile/DoctorProfileCard"
 const ProfileDetail = () => {
     const { user, dispatch } = useContext(MyUserContext);
-    const initProfile = (u) => ({
-        first_name: u?.first_name ?? null,
-        last_name: u?.last_name ?? null,
-        email: u?.email ?? null,
-        phone: u?.phone ?? null,
-        dob: u?.dob ?? null,
-        gender: u?.gender ?? null,
-        profile: {
-            allergy_history: u?.profile?.allergy_history ?? null,
-            blood_group: u?.profile?.blood_group ?? null,
-            height: u?.profile?.height ?? null,
-            weight: u?.profile?.weight ?? null,
-            insurance_number: u?.profile?.insurance_number ?? null,
-            insurance_expiry_date: u?.profile?.insurance_expiry_date ?? null,
-        }
-    });
+    const initProfile = (u) => {
+        const isCustomer = u?.role === "customer";
+
+        const profileFields = isCustomer
+            ? {
+                allergy_history: u?.profile?.allergy_history ?? null,
+                blood_group: u?.profile?.blood_group ?? null,
+                height: u?.profile?.height ?? null,
+                weight: u?.profile?.weight ?? null,
+                insurance_number: u?.profile?.insurance_number ?? null,
+                insurance_expiry_date: u?.profile?.insurance_expiry_date ?? null,
+            }
+            : {
+                specialties: u?.profile?.specialties ?? [],
+                workday_set: u?.profile?.workday_set ?? [],
+                degree: u?.profile?.degree ?? null,
+                experience: u?.profile?.experience ?? null,
+                bio: u?.profile?.bio ?? null,
+            };
+
+        return {
+            first_name: u?.first_name ?? null,
+            last_name: u?.last_name ?? null,
+            email: u?.email ?? null,
+            phone: u?.phone ?? null,
+            dob: u?.dob ?? null,
+            gender: u?.gender ?? null,
+            profile: profileFields,
+        };
+    };
 
     const [profileDetail, setProfileDetail] = useState(initProfile(user));
     const [change, setChange] = useState(true)
@@ -142,12 +157,11 @@ const ProfileDetail = () => {
                 setProfileDetail(data);
                 setErro({});
             },
-            (type, message, data) => {
+            (type, message, fieldErrors) => {
                 if (type === "client") {
-                    showSnackbar(message, "error");
-                } else {
-                    showSnackbar("Cập nhật hồ sơ thất bại. Vui lòng thử lại.", "error");
-                }
+                        setErro(fieldErrors || {});
+                        showSnackbar("Cập nhật hồ sơ thất bại!", "error", message);
+                    }
             },
             setLoading
         );
@@ -177,7 +191,9 @@ const ProfileDetail = () => {
                             <InsuranceCard err={erro} data={profileDetail} updateProfile={updateProfile} />
                             <MedicalInfoCard data={profileDetail} updateProfile={updateProfile} />
                         </>
-                    ) : null}
+                    ) : (
+                        <DoctorProfileCard data={profileDetail} />
+                    )}
                 </View>
             </ScrollView>
             {change === true ?

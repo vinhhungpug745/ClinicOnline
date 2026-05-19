@@ -127,6 +127,7 @@ class Appointment(BaseModel):
     class Status(models.TextChoices):
         PENDING = "Pending"
         CONFIRMED = "Confirmed"
+        PENDING_PAYMENT = "Pending_payment"
         COMPLETED = "Completed"
         CANCELED = "Canceled"
 
@@ -151,10 +152,10 @@ class Appointment(BaseModel):
 # bệnh án
 class MedicalRecord(BaseModel):
     appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE,related_name="medical_record")
-    diagnosis = models.TextField()           # Chẩn đoán
-    symptoms = models.TextField(blank=True,default='')  # Triệu chứng
+    diagnosis = models.TextField()
+    symptoms = models.TextField(blank=True,default='')
     medical_notes = models.TextField(blank=True, default='')
-    follow_up_date = models.DateField(null=True, blank=True)  # Ngày tái khám
+    follow_up_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_date"]

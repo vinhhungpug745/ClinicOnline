@@ -24,11 +24,12 @@ import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
 import SnackbarProvider from './utils/contexts/SnackBarContext';
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Workday from './screens/WorkDay/Workday';
-import AlertProvider from './utils/contexts/AlertContext';
+import AlertProvider, { useAlert } from './utils/contexts/AlertContext';
 import Information from './screens/Home/Information';
 import Mystyles from './styles/Mystyles';
 import COLORS from './styles/Colors';
 import Chat from './screens/BoxChat/Chat';
+import Search from './screens/Home/Search';
 
 
 const Stack = createNativeStackNavigator();
@@ -61,6 +62,7 @@ const StackHomeNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={Home} />
       <Stack.Screen name="DoctorDetail" component={DoctorDetail} />
+      <Stack.Screen name="Search" component={Search} />
     </Stack.Navigator>
   );
 }
@@ -153,7 +155,7 @@ const TabNavigatior = () => {
 const App = () => {
 
   const [user, dispatch] = useReducer(MyUserReducer, null);
-
+  // const { showAlert } = useAlert()
   const loadUser = async () => {
     try {
       const savedStr = await SecureStore.getItemAsync("user");
@@ -187,7 +189,25 @@ const App = () => {
           (err) => {
             SecureStore.deleteItemAsync("user");
             dispatch({ type: "LOGOUT" });
-            console.log("Token hết hạn, chuyển đến login");
+            // showAlert({
+            //   type: 'info',
+            //   title: 'Xác nhận',
+            //   message: 'Bạn đã hết phiên đăng nhập vui lòng đăng nhập lại để tiếp tực xử dụng dv?',
+            //   actions: [
+            //     {
+            //       text: 'Hủy',
+            //       style: 'cancel'
+            //     },
+            //     {
+            //       text: 'Đăng nhặp',
+            //       onPress: () => {
+            //         navigation.navigate("User", {
+            //           screen: "Login"
+            //         })
+            //       },
+            //     },
+            //   ],
+            // })
           }
         );
       } else {

@@ -50,7 +50,7 @@ const BookingContent = () => {
                 setLoading(false)
                 return
             }
-        }, [])
+        }, [user])
     );
 
     const canGoNext = () => {

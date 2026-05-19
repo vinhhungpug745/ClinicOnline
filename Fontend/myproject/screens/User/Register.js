@@ -175,10 +175,6 @@ const Register = ({ navigation }) => {
                     if (type === "client") {
                         setErrors(errData || {});
                         showSnackbar("Đăng ký thất bại!", "error", msg);
-                    } else if (type === "server") {
-                        showSnackbar("Lỗi máy chủ!", msg, "error");
-                    } else {
-                        showSnackbar("Mất kết nối!", msg, "error");
                     }
                 },
                 { 'Content-Type': 'multipart/form-data' }, null,
