@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { FlatList, View, Text, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, ScrollView, } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { fetchWithAuth, updatePatchWithAuth } from "../../utils/apiHelper";
+import { deleteWithAuth, fetchWithAuth, updatePatchWithAuth } from "../../utils/apiHelper";
 import { endpoints } from "../../configs/Apis";
 import AppointmentCard from "../../components/Appointment/AppointmentCard";
 import COLORS from "../../styles/Colors";
@@ -32,7 +32,7 @@ const ListAppointments = ({ navigation }) => {
     const [error, setError] = useState(null);
     const { user, dispatch } = React.useContext(MyUserContext);
     const { showSnackbar } = useSnackbar();
-    const {showAlertAuth} = useAlert();
+    const { showAlertAuth } = useAlert();
     const loadAppointments = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         else setLoadingScrean(true);
@@ -58,7 +58,7 @@ const ListAppointments = ({ navigation }) => {
                 showAlertAuth({ lable: "Lịch hẹn" })
                 setLoading(false)
                 return
-            }loadAppointments();
+            } loadAppointments();
         }, [])
     );
 
@@ -67,7 +67,8 @@ const ListAppointments = ({ navigation }) => {
             endpoints.appointmentDetail(id),
             stutus,
             (data) => {
-                showSnackbar("Duyệt phiếu thành công", "success")
+                showSnackbar("Duyệt phiếu thành công", "success");
+                loadAppointments();
             },
             (type, msg, errData) => {
                 if (type === "client") {
@@ -77,7 +78,27 @@ const ListAppointments = ({ navigation }) => {
                 } else {
                     showSnackbar("Mất kết nối!", msg, "error");
                 }
-            }, setLoading
+            }, setLoadingScrean
+
+        )
+    }
+
+    const deleteAppointment = async (id) =>{
+        await deleteWithAuth(
+            endpoints.appointmentDetail(id),
+            () =>{
+                showSnackbar("Xóa phiếu thành công", "success");
+                loadAppointments();
+            },
+            (type, msg, errData) => {
+                if (type === "client") {
+                    showSnackbar("Duyệt phiếu thất bại!", "error", msg);
+                } else if (type === "server") {
+                    showSnackbar("Lỗi máy chủ!", msg, "error");
+                } else {
+                    showSnackbar("Mất kết nối!", msg, "error");
+                }
+            }, setLoadingScrean
 
         )
     }
@@ -148,7 +169,10 @@ const ListAppointments = ({ navigation }) => {
                                 navigation.navigate("AppointmentDetail", { id: item.id })
                             }
                             onConfirm={(id) => changeStatusAppointment(id, { "status": "Confirmed" })}
-                            onReject={(id) => changeStatusAppointment(id, { "status": "Canceled" })}
+                            onReject={user?.role === "customer"
+                                ? (id) => deleteAppointment(id)
+                                : (id) => changeStatusAppointment(id, { "status": "Canceled" })
+                            }
                         />
                     )}
                     refreshing={refreshing}

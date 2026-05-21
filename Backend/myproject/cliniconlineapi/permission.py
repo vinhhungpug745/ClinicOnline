@@ -1,3 +1,4 @@
+from django.contrib.auth.models import PermissionsMixin
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from cliniconlineapi.models import User
 
@@ -21,6 +22,13 @@ class IsDoctorRole(IsAuthenticated):
         return (
                 super().has_permission(request, view) and
                 request.user.role == User.Role.DOCTOR
+        )
+
+class IsAdminRole(IsAuthenticated):
+    def has_permission(self, request, view):
+        return (
+                super().has_permission(request, view) and
+                request.user.is_superuser
         )
 
 class IsHealthcareRole(IsAuthenticated):
@@ -57,5 +65,8 @@ class IsWorkdayOwner(IsAuthenticated):
     def has_object_permission(self, request, view, Workday):
         return (
             super().has_permission(request, view) and
+            request.user.Role in [User.Role.DOCTOR, User.Role.HEALTHCARE] and
             request.user == Workday.staff_profile.user
         )
+
+

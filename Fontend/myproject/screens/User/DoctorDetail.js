@@ -36,10 +36,9 @@ const DoctorDetail = ({ route }) => {
             endpoints.doctorDetail(id),
             (data) => {
                 setDetailDoctor(data);
-                console.log("Doctor detail loaded:", data);
+                console.log(data)
             },
             (errType, errMsg) => {
-                console.error("Error loading doctor detail:", errType, errMsg);
                 showSnackbar("Lỗi khi tải thông tin bác sĩ", "error");
             }, {}, setLoading
         );
@@ -157,6 +156,20 @@ const DoctorDetail = ({ route }) => {
                         }
                     ]}
                 />
+                <ProfileInfoRow
+                    title="Giá khám bệnh"
+                    icon="cash"
+                    items={[
+                        {
+                            key: 'price',
+                            title: detailDoctor?.profile?.price
+                                ? new Intl.NumberFormat('vi-VN').format(detailDoctor.profile.price) + ' VND'
+                                : 'Chưa cập nhật',
+                            description: 'Phí mỗi lần khám',
+                            icon: 'cash',
+                        }
+                    ]}
+                />
             </ScrollView>
 
             <AppButton
@@ -166,14 +179,15 @@ const DoctorDetail = ({ route }) => {
                     navigation.navigate("BookingTab", {
                         screen: "Booking",
                         params: {
-                            doctor: { 
+                            doctor: {
                                 id: detailDoctor.id,
+                                
                                 first_name: detailDoctor.first_name,
                                 last_name: detailDoctor.last_name,
                                 email: detailDoctor.email,
                                 phone: detailDoctor.phone,
-                             },
-                            specialty: profile.specialties[0],
+                            },
+                            specialty: profile.specialties[0]
                         }
                     });
                 }}

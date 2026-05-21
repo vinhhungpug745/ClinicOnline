@@ -2,16 +2,18 @@ import InputField, { InputItem } from "../../components/User/LoginRegister/Input
 import Mystyles from "../../styles/Mystyles";
 import { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
-import { Button, HelperText, Icon } from "react-native-paper";
+import { Button, Card, HelperText, Icon, SegmentedButtons } from "react-native-paper";
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import Apis, { endpoints } from "../../configs/Apis";
-import { createPublic } from "../../utils/apiHelper";
+import { createPublic, createWithAuth } from "../../utils/apiHelper";
 import AppButton from "../../components/AppButton";
 import { useSnackbar } from "../../utils/contexts/SnackBarContext";
 import AppHeader from "../../components/AppHeader";
 import COLORS from "../../styles/Colors";
+import styles from "../../components/Schedule/TimeShift"
 
-const Register = ({ navigation }) => {
+const Register = ({ navigation, is_superuser }) => {
     const [user, setUser] = useState({
         username: '',
         password: '',
@@ -19,6 +21,7 @@ const Register = ({ navigation }) => {
         fullName: '',
         phone: '',
         email: '',
+        ...(is_superuser && { role: 'doctor' })
     });
     const { showSnackbar } = useSnackbar();
     const [loading, setLoading] = useState(false);
@@ -67,27 +70,39 @@ const Register = ({ navigation }) => {
 
     const [errors, setErrors] = useState({});
 
+
     const pickImage = async () => {
-        let { status } =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
             alert("Permissions denied!");
-        } else {
-            const result =
-                await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.3,
-                    allowsEditing: true,
-                    aspect: [1,1],
-                });
-            if (!result.canceled) {
-                const asset = result.assets[0];
-                if (asset.fileSize > 5 * 1024 * 1024) {
-                    showSnackbar("Ảnh quá lớn!", "Vui lòng chọn ảnh dưới 5MB", "warning");
-                    return;
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            const asset = result.assets[0];
+
+            const compressed = await ImageManipulator.manipulateAsync(
+                asset.uri,
+                [{ resize: { width: 300 } }],
+                { compress: 0.3, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
+            setUser({
+                ...user,
+                avatar: {
+                    ...asset,
+                    uri: compressed.uri,
+                    mimeType: 'image/jpeg',
+                    fileName: 'avatar.jpg',
                 }
-                setUser({ ...user, avatar: asset });
-            }
+            });
         }
     }
 
@@ -152,15 +167,63 @@ const Register = ({ navigation }) => {
                         formData.append("last_name", last_name);
                     } else if (key === "avatar") {
                         formData.append("avatar", {
-                            uri: user[key].uri,
-                            name: user[key].fileName,
-                            type: 'image/jpeg',
+                            uri:
+                                Platform.OS === 'android'
+                                    ? user[key].uri
+                                    : user[key].uri.replace('file://', ''),
+                            name: user[key].fileName ?? 'avatar.jpg',
+                            type: user[key].mimeType ?? 'image/jpeg',
                         });
                     } else {
                         formData.append(key, user[key]);
                     }
                 }
             }
+
+            console.log('formData:', formData._parts);
+            console.log('is_superuser:', is_superuser);
+            const token = await AsyncStorage.getItem("access_token");
+            console.log('token:', token);
+            if (is_superuser) {
+                console.log(1)
+                await createWithAuth(
+                    endpoints.register,
+                    formData,
+                    (data) => {
+                        navigation.navigate("Login", {
+                            successMessage: "Đăng ký thành công! Vui lòng đăng nhập."
+                        });
+                    },
+                    (type, msg, errData) => {
+                        if (type === "client") {
+                            setErrors(errData || {});
+                            showSnackbar("Đăng ký thất bại!", "error", msg);
+                        }
+                    },
+                    { 'Content-Type': 'multipart/form-data' }, null,
+                    setLoading
+                );
+            } else {
+                console.log(2)
+                await createPublic(
+                    endpoints.register,
+                    formData,
+                    (data) => {
+                        navigation.navigate("Login", {
+                            successMessage: "Đăng ký thành công! Vui lòng đăng nhập."
+                        });
+                    },
+                    (type, msg, errData) => {
+                        if (type === "client") {
+                            setErrors(errData || {});
+                            showSnackbar("Đăng ký thất bại!", "error", msg);
+                        }
+                    },
+                    { 'Content-Type': 'multipart/form-data' }, null,
+                    setLoading
+                );
+            }
+
 
 
             await createPublic(
@@ -184,15 +247,15 @@ const Register = ({ navigation }) => {
         };
         setLoading(false);
     }
-
+    const titles = is_superuser ? "Tạo tài khoản nhân viên" : "Đăng ký tài khoản";
     return (
         <View>
-            <AppHeader titles="Đăng ký tài khoản" onBack={() => {
+            <AppHeader titles={titles} onBack={() => {
                 navigation.goBack();
             }}>
 
             </AppHeader>
-            <ScrollView style={{ paddingHorizontal: 28 ,paddingTop: 36, backgroundColor: COLORS.bg}}>
+            <ScrollView style={{ paddingHorizontal: 28, paddingTop: 36, backgroundColor: COLORS.bg }}>
 
                 <InputField list={infoWithError.slice(0, 2)} user={user} setUser={setUser} setErrors={setErrors} />
                 <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 12 }}>
@@ -249,6 +312,33 @@ const Register = ({ navigation }) => {
                     </View>
                 </View>
                 <InputField list={infoWithError.slice(2)} user={user} setUser={setUser} setErrors={setErrors} />
+
+                {is_superuser === true && (
+                    <Card style={styles.card}>
+                        <Card.Content>
+                            <SegmentedButtons
+                                value={user.role}
+                                onValueChange={(value) => {
+                                    setUser({ ...user, role: value });
+                                }}
+                                style={styles.segmented}
+                                theme={{
+                                    colors: {
+                                        secondaryContainer: COLORS.primary,
+                                        onSecondaryContainer: '#ffffff',
+                                        outline: '#e2e8f0',
+                                    },
+                                }}
+                                buttons={[
+                                    { value: 'doctor', label: 'Bác sĩ', style: styles.segBtn },
+                                    { value: 'healthcare', label: 'Y tá', style: styles.segBtn },
+                                ]}
+                            />
+                        </Card.Content>
+                    </Card>
+                )}
+
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                     <TouchableOpacity onPress={pickImage} style={{
                         alignSelf: 'flex-start',
@@ -277,18 +367,6 @@ const Register = ({ navigation }) => {
 
                 <View style={{ marginTop: 40 }}>
                     <AppButton loading={loading} type="register" icon="account-plus" onPress={register} />
-                </View>
-
-                <Text style={{ marginVertical: 20, textAlign: 'center', color: '#a4a4ad' }}>------ Hoặc đăng ký bằng ------</Text>
-
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Button style={Mystyles.btnSocial} icon="google" mode="contained" onPress={() => console.log('Pressed')}>
-                        Google
-                    </Button>
-
-                    <Button style={Mystyles.btnSocial} icon="facebook" mode="contained" onPress={() => console.log('Pressed')}>
-                        Facebook
-                    </Button>
                 </View>
 
                 <View style={{ marginTop: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

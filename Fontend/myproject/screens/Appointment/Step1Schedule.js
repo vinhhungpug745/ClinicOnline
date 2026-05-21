@@ -17,13 +17,6 @@ import { Calendar } from "react-native-calendars";
 import MyCalender from "../../components/Schedule/MyCalendar";
 import { MyUserContext } from "../../utils/contexts/MyUserContext";
 
-const SERVICES = [
-    { id: "1", name: "Khám thường", description: "Khám lâm sàng và tư vấn điều trị" },
-    { id: "2", name: "Khám chuyên sâu", description: "Khám kỹ lưỡng với các xét nghiệm cần thiết" },
-    { id: "3", name: "Khám định kỳ", description: "Gói khám định kỳ cho người cao tuổi" },
-    { id: "4", name: "Khám sức khỏe tổng quát", description: "Gói khám tổng quát cho mọi lứa tuổi" },
-];
-
 
 export const SectionLabel = ({ text }) => (
     <View style={styles.sectionLabelRow}>
@@ -32,13 +25,10 @@ export const SectionLabel = ({ text }) => (
     </View>
 );
 
-[
-    { "avatar": "https://res.cloudinary.com/dkdvg8jix/image/upload/v1777428624/smiling-young-pretty-caucasian-girl-doctor-uniform-with-stethoscope-looking-side_141793-124530_t2fztp", "email": "bsnguyenvanr@gmail.com", "first_name": "R", "gender": "other", "id": 19, "last_name": "Nguyễn Văn", "phone": "0917111017" },
-    { "avatar": "https://res.cloudinary.com/dkdvg8jix/image/upload/v1777428597/smiling-young-female-doctor-wearing-medical-robe-stethoscope-with-glasses-isolated_141793-68741_xsg6ev", "email": "bsnguyenvans@gmail.com", "first_name": "S", "gender": "male", "id": 20, "last_name": "Nguyễn Văn", "phone": "0918111018" },
-    { "avatar": "https://res.cloudinary.com/dkdvg8jix/image/upload/v1777428575/male-doctor-with-face-mask-portrait_53876-105124_exqkyo", "email": "bsnguyenvant@gmail.com", "first_name": "T", "gender": "female", "id": 21, "last_name": "Nguyễn Văn", "phone": "0919111019" }]
-
 const Step1Schedule = ({ doctor, specialty }) => {
+    const [isRefreshed, setIsRefreshed] = useState(false);
     const [specialies, setSpecialies] = useState([]);
+    const [services, setServices] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [workDay, setWorkDay] = useState([])
     const [snackbar, setSnackbar] = useState({});
@@ -48,6 +38,7 @@ const Step1Schedule = ({ doctor, specialty }) => {
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const { user } = useContext(MyUserContext);
+
     const loadSpecialty = async (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         await fetchWithAuth(
@@ -80,32 +71,52 @@ const Step1Schedule = ({ doctor, specialty }) => {
         await fetchWithAuth(
             endpoints.doctorspecialty(specialtyId),
             (data) => {
-                console.log(data)
                 setDoctors(formatDoctors(data))
             },
             (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
         )
     };
 
+    const loadServicesNormal = async () =>{
+        await fetchWithAuth(
+            endpoints.servicesNormal,
+            (data)=>{
+                console.log(data)
+                setServices(data)
+            },
+            (type, msg) => setSnackbar({ visible: true, message: msg, type: 'error' }),
+        )
+    }
+
     useEffect(() => {
-        if (user) {
-            if (page == null) return;
-            if (doctor && specialty) {
+        if (user) {            
+            if (doctor && specialty && !isRefreshed) {
                 updateBulk({
                     doctor: formatDoctors([doctor])[0],
                     specialty: specialty
                 });
                 LoadWorkDayDoctor(doctor?.id);
-            } else loadSpecialty();
+            } else {
+                loadServicesNormal()
+                if (page == null) return;
+                loadSpecialty();
+            }
         }
     }, [page, doctor, specialty]);
 
     useEffect(() => {
-        if(user){
-            if (!doctor && specialty)
-                if (bookingData.specialty) LoadWorkDayDoctor(bookingData.doctor?.id);
+        if (doctor && specialty) {
+            setIsRefreshed(false);
         }
     }, [doctor, specialty]);
+
+    useEffect(() => {
+        if (!user) return;
+        if (bookingData.doctor?.id && workDay.length === 0) {
+            LoadWorkDayDoctor(bookingData.doctor.id);
+        }
+    }, [bookingData.doctor]);
+
 
     if (loading) return <LoadingScreen text="Đang tải thông tin bác sĩ và lịch làm việc..." />;
 
@@ -117,20 +128,24 @@ const Step1Schedule = ({ doctor, specialty }) => {
         ? [bookingData.doctor, ...doctors.filter(d => d.id !== bookingData.doctor.id)]
         : doctors;
 
-    console.log(bookingData);
 
     return (
         <View>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={() => {
+                            resetAll(user);
+                            setSpecialies([]);
+                            setDoctors([]);
+                            setWorkDay([]);
+                            setPage(1);
+                            setIsRefreshed(true);
                             loadSpecialty(true);
-                            resetAll();
+                            setHasMore(true);
                         }}
                         colors={[COLORS.primary]}
                         tintColor={COLORS.primary}
@@ -167,7 +182,7 @@ const Step1Schedule = ({ doctor, specialty }) => {
                     title="Chọn dịch vụ"
                     value={bookingData.serviceNormal}
                     icon="medical-bag"
-                    data={SERVICES}
+                    data={services}
                     onSelect={(item) => updateBooking("serviceNormal", item)}
                 />
 

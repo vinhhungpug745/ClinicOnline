@@ -2,10 +2,10 @@ from calendar import monthrange
 
 from cloudinary import CloudinaryResource
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-from cliniconlineapi.models import User, StaffProfile, CustomerProfile, Specialty, StaffSpecialty, WorkDay, TimeSlot
-from cliniconlineapi.validators import NameValidator, PhoneNumberValidator, MaxLengthValidator, MinLengthValidator
-from datetime import date, datetime
+from cliniconlineapi.models import User, StaffProfile, CustomerProfile, Specialty, WorkDay, TimeSlot
+from cliniconlineapi.validators import NameValidator, PhoneNumberValidator, MinLengthValidator
+from datetime import date
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -36,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_avatar(self, value):
 
         if isinstance(value, CloudinaryResource):
-            return value  # đã upload rồi, bỏ qua validate
+            return value
 
         if value.size > 5 * 1024 * 1024:
             raise serializers.ValidationError("Ảnh không được vượt quá 5MB.")
@@ -66,8 +66,11 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_role(self, value):
         request = self.context.get("request")
         user = request.user if request else None
+        print("role:", value)
+        print("user:", user)
+        print("is_superuser:", user.is_superuser if user else None)
         if value != User.Role.CUSTOMER:
-            if not (user and user.is_staff):
+            if not (user and user.is_superuser):
                 raise serializers.ValidationError("Chỉ admin mới có thể gán quyền này.")
         return value
 
@@ -79,14 +82,16 @@ class UserSerializer(serializers.ModelSerializer):
         if user.role in [User.Role.DOCTOR, User.Role.HEALTHCARE]:
             StaffProfile.objects.create(user=user)
         elif user.role == User.Role.CUSTOMER:
-            CustomerProfile.objects.create(
-                user=user,
-                height=profile_data.get('height'),
-                weight=profile_data.get('weight'),
-                insurance_number=profile_data.get('insurance_number'),
-                insurance_expiry_date = profile_data.get('insurance_expiry_date'),
-                allergy_history = profile_data.get('allergy_history'),
-            )
+            # CustomerProfile.objects.create(
+            #     user=user,
+            #     height=profile_data.get('height'),
+            #     weight=profile_data.get('weight'),
+            #     insurance_number=profile_data.get('insurance_number'),
+            #     insurance_expiry_date = profile_data.get('insurance_expiry_date'),
+            #     allergy_history = profile_data.get('allergy_history'),
+            # )
+
+            CustomerProfile.objects.create(user=user)
         return user
 
 class UserDetailSerializer(UserSerializer):
@@ -99,11 +104,14 @@ class UserDetailSerializer(UserSerializer):
         extra_kwargs = UserSerializer.Meta.extra_kwargs
 
     def to_representation(self, instance):
+        from cliniconlineapi.serializers.StaffSerializer import StaffProfileSerializer
         data = super().to_representation(instance)
-        if instance.role == User.Role.CUSTOMER:
+        if instance.role == User.Role.CUSTOMER and not instance.is_superuser:
             data["profile"] = CustomerProfileSerializer(instance.customer_profile).data
-        else:
-            data["profile"] = StaffProfileDetailSerializer(instance.staff_profile).data
+        if instance.role in [User.Role.DOCTOR, User.Role.HEALTHCARE]:
+            data["profile"] = StaffProfileSerializer(instance.staff_profile).data
+        if instance.is_superuser:
+            data["is_superuser"] = True
         return data
 
     def update(self, instance, validated_data):
@@ -117,26 +125,12 @@ class UserDetailSerializer(UserSerializer):
                     data=profile_data,
                     partial=True
                 )
-            else:
-                serializer = StaffProfileDetailSerializer(
-                    instance.staff_profile,
-                    data=profile_data,
-                    partial=True
-                )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
 
         return instance
 
-class DoctorSerializer(UserSerializer):
-    price = serializers.FloatField(
-        source='staff_profile.price',
-        read_only=True
-    )
 
-    class Meta:
-        model = UserSerializer.Meta.model
-        fields = UserSerializer.Meta.fields + ['price']
 
 class SpecialtySerializer(serializers.ModelSerializer):
     class Meta:
@@ -231,34 +225,6 @@ class WorkDaySerializer(WorkDayLiteSerializer):
             TimeSlot.objects.create(work_day=workday, **slot)
         return workday
 
-class StaffProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = StaffProfile
-        fields = ["id", "specialties", "degree", "experience", "bio", "price"]
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["workday_set"] = WorkDayLiteSerializer(instance.work_days.all(), many=True).data
-        data["specialties"] = SpecialtySerializer(instance.specialties.all(), many=True).data
-        return data
-
-    def validate_experience(self, value):
-        if value:
-            if value > 98:
-                raise ValidationError("ko dược lớn hơn 98")
-            elif value < 2:
-                raise ValidationError("ko dược nhỏ hơn 1")
-        return value
-
-class StaffProfileDetailSerializer(StaffProfileSerializer):
-    class Meta:
-        model = StaffProfileSerializer.Meta.model
-        fields = StaffProfileSerializer.Meta.fields
-
-    # def to_representation(self, instance):
-    #     data = super().to_representation(instance)
-    #     data["workday_set"] = WorkDaySerializer(instance.work_days.all(), many=True).data
-    #     return data
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:

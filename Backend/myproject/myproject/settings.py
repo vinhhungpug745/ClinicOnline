@@ -80,13 +80,13 @@ ALLOWED_HOSTS = [
 ]
 
 ROOT_URLCONF = 'myproject.urls'
-
+load_dotenv()
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'cliniconline',
         'USER': 'root',
-        'PASSWORD': '123456',
+        'PASSWORD': os.getenv('MYSQL_USER'),
         'HOST': '' # mặc định localhost
     }
 }
@@ -101,9 +101,9 @@ pymysql.install_as_MySQLdb()
 
 import cloudinary.api
 cloudinary.config(
-    cloud_name= 'dkatgavs4',
-    api_key='769513968994667',
-    api_secret= 'oNIu8AMfcmwLlkhANlyCYXI40B0'
+    cloud_name= os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret= os.getenv('CLOUDINARY_API_SECRET'),
 )
 
 TEMPLATES = [

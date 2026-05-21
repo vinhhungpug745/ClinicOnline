@@ -12,6 +12,7 @@ export const endpoints = {
     'doctorWorkDay': (id) => `/doctors/${id}/doctor_workday/`,
     'doctorspecialty': (id) => `/specialtys/${id}/doctors/`,
     'specialty': '/specialtys/',
+    'servicesNormal': '/services_normal/',
     'login': '/o/token/',
     'logout': '/o/revoke_token/',
     'profile': '/users/profile_user/',
@@ -29,6 +30,7 @@ export const endpoints = {
     'tests': '/tests/',
     'testResults': '/test-results/',
     'testResultDetail': (id) => `/test-results/${id}/`,
+    'stats': 'stats'
 }
 
 export const authApis = (token) => {

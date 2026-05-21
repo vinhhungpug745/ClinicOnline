@@ -1,29 +1,37 @@
+import os
 from datetime import date, timedelta
 
-from django.db.models import Q
+from django.db.models import Count, Q, Case, When, Value, CharField, Sum, F
+from django.db.models.functions import ExtractYear, TruncMonth
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from oauth2_provider.contrib.rest_framework import permissions
-from rest_framework import viewsets, generics, parsers, status, pagination
+from django.utils.timezone import now
+from rest_framework import viewsets, generics, parsers, status, permissions
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from cliniconlineapi import paginators, permission
-from cliniconlineapi.models import User, Specialty, StaffProfile, WorkDay, Appointment, TimeSlot, Medicine, \
-    MedicalRecord, TestResult, Prescription, Test
 from cliniconlineapi.serializers import userserializer, ChatBoxSerializer
+from cliniconlineapi.models import User, Specialty, WorkDay, Appointment, TimeSlot, Medicine, MedicalRecord, TestResult, \
+    Prescription, ServiceNormal,PrescriptionDetail, Test
+from cliniconlineapi.serializers import userserializer, StaffSerializer
 from cliniconlineapi.serializers.AppointmentSerializer import AppointmentSerializer, AppointmentDetailSerializer
 from cliniconlineapi.serializers.ChatBoxSerializer import GeminiChatSerializer
 from cliniconlineapi.serializers.MedicalRecordSerializer import MedicalRecordUpdateSerializer, \
     MedicalRecordCreateSerializer, MedicalRecordDetailSerializer, MedicalRecordListSerializer
 from cliniconlineapi.serializers.MedicalSerializer import PrescriptionDetailedSerializer, PrescriptionCreateSerializer, \
     MedicineSerializer, PrescriptionUpdateSerializer
+from cliniconlineapi.serializers.ServiceSerializer import ServiceNormalSerializer
 from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer, TestResultCreateSerializer, \
     TestResultUpdateSerializer, TestResultBulkCreateSerializer, TestSerializer
 from cliniconlineapi.serializers.userserializer import WorkDaySerializer, TimeSlotSerializer, SpecialtySerializer, \
-    WorkDayLiteSerializer, DoctorSerializer
+    WorkDayLiteSerializer
+from cliniconlineapi.serializers.StaffSerializer import DoctorSerializer
 import google.generativeai as genai
-
 from cliniconlineapi.validators import MedicalRecordDataValidator, PrescriptionDataValidator, TestResultDataValidator
 
 class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
@@ -42,7 +50,7 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
         try:
             if request.user.role == User.Role.CUSTOMER:
                 user = User.objects.select_related("customer_profile").get(id=request.user.id)
-            else:
+            if request.user.role in [User.Role.HEALTHCARE, User.Role.DOCTOR]:
                 user = User.objects.select_related("staff_profile").prefetch_related(
                     "staff_profile__specialties"
                 ).get(
@@ -119,32 +127,39 @@ class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
 
         time_slots_data = request.data.get("time_slots", [])
 
-        workday.time_slots.all().delete()
+        protected_ids = set(
+            workday.time_slots
+            .filter(appointment_time_slot__isnull=False)
+            .values_list('id', flat=True)
+        )
 
-        serializer = TimeSlotSerializer(data=time_slots_data,many=True)
+        workday.time_slots.filter(appointment_time_slot__isnull=True).delete()
+
+        new_slots = [s for s in time_slots_data if s.get('id') not in protected_ids]
+
+        for slot in new_slots:
+            slot.pop('id', None)
+
+        serializer = TimeSlotSerializer(data=new_slots, many=True)
         serializer.is_valid(raise_exception=True)
         serializer.save(work_day=workday)
 
         return Response(WorkDaySerializer(workday).data, status=status.HTTP_200_OK)
 
 class DoctorProfileViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    serializer_class = userserializer.UserSerializer
     pagination_class = paginators.ItemPaginator
+
+    def get_permissions(self):
+        if self.action == "retrieve":
+            return  [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def get_serializer_class(self):
         if self.action == "retrieve":
-            return userserializer.UserDetailSerializer
-        return userserializer.UserSerializer
+            return StaffSerializer.DoctorProfileSerializer
+        return StaffSerializer.DoctorSerializer
 
     def get_queryset(self):
-        if self.action == "retrieve":
-            return User.objects.filter(
-                role__in=[User.Role.DOCTOR, User.Role.HEALTHCARE]
-            ).select_related("staff_profile").prefetch_related(
-                "staff_profile__specialties",
-                # "staff_profile__work_days__time_slots"
-            )
-
         query = User.objects.filter(
             role=User.Role.DOCTOR
         ).select_related("staff_profile").prefetch_related(
@@ -163,6 +178,7 @@ class DoctorProfileViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retr
         url_path="doctor_workday",
         url_name="doctor_workday",
         detail=True,
+        permission_classes=[permissions.IsAuthenticated]
     )
     def doctor_workday(self, request, pk):
         if request.method == "GET":
@@ -209,10 +225,24 @@ class AppointmentViewSet(viewsets.ViewSet,
 
         return self.queryset.none()
 
-        if instance.status != Appointment.Status.PENDING:
-            raise ValidationError("Chỉ có thể xóa lịch hẹn đang chờ xác nhận.")
+    def perform_update(self, serializer):
+        instance = self.get_object()
 
-        if timezone.now() - instance.created_date > timedelta(hours=24):
+        if instance.status != Appointment.Status.PENDING:
+            raise ValidationError("Chỉ có thể cập nhật lịch hẹn đang chờ xác nhận.")
+
+        updated = serializer.save()
+
+        if updated.status == Appointment.Status.CANCELED:
+            updated.time_slot.status = TimeSlot.Status.AVAILABLE
+            updated.time_slot.save()
+
+    def perform_destroy(self, instance):
+
+        if instance.status not in [Appointment.Status.PENDING, Appointment.Status.CANCELED]:
+            raise ValidationError("Chỉ có thể xóa lịch hẹn đang chờ xác nhận hoặc từ chối.")
+
+        if instance.status == Appointment.Status.PENDING and now() - instance.created_date > timedelta(hours=24):
             raise ValidationError("Không thể xóa lịch hẹn sau 24 giờ kể từ khi đặt.")
 
         instance.time_slot.status = TimeSlot.Status.AVAILABLE
@@ -248,8 +278,13 @@ class SpecialtyViewSet(viewsets.ViewSet, generics.ListAPIView):
 
         return query
 
+class ServiceNormalViewSet(viewsets.ViewSet, generics.ListAPIView):
+    queryset = ServiceNormal.objects.all()
+    serializer_class = ServiceNormalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
 genai.configure(
-    api_key="AIzaSyAN5g621nGyKmHN6ZgQ6NlPM2GfdhzHeLY"
+    api_key=os.getenv('GENIA_API_KEY'),
 )
 
 _model = None
@@ -375,7 +410,6 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
             active=True
         )
         return Response(MedicineSerializer(medicines, many=True).data)
-
 
 class PrescriptionViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
     queryset = Prescription.objects.filter(active=True)
@@ -624,3 +658,200 @@ class MedicalRecordViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generic
             MedicalRecordListSerializer(qs, many=True).data,
             status=status.HTTP_200_OK
         )
+
+class TotalStatView(APIView):
+    permission_classes = [permission.IsAdminRole]
+
+    def get(self, request):
+        stat_type = request.query_params.get('type')
+
+        if stat_type == 'age':
+            return Response(self.get_age())
+        elif stat_type == 'gender':
+            return Response(self.get_gender())
+        elif stat_type == 'specialty':
+            return Response(self.get_specialty())
+        elif stat_type == 'serviceNormal':
+            return Response(self.get_serviceNormal())
+        elif stat_type == 'totalSales':
+            return Response(self.get_totalSales(request))
+        return Response({'error': 'type không hợp lệ'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_age(self):
+        current_year = now().year
+        return list(User.objects.filter(
+            role='customer',
+            is_active=True,
+            dob__isnull=False
+        ).annotate(
+            age=current_year - ExtractYear('dob'),
+            age_group=Case(
+                When(age__lte=18, then=Value('0-18')),
+                When(age__range=(19, 30), then=Value('19-30')),
+                When(age__range=(31, 50), then=Value('31-50')),
+                default=Value('50+'),
+                output_field=CharField()
+            )
+        ).values('age_group').annotate(
+            completed_appointments=Count(
+                'appointments_customer',
+                filter=Q(appointments_customer__status=Appointment.Status.COMPLETED)
+            )
+        ).order_by('age_group'))
+
+    def get_gender(self):
+        return list(User.objects.filter(
+            role='customer',
+            is_active=True
+        ).values('gender').annotate(
+            completed_appointments=Count(
+                'appointments_customer',
+                filter=Q(appointments_customer__status=Appointment.Status.COMPLETED)
+            )
+        ).order_by('gender'))
+
+    def get_specialty(self):
+        return list(Specialty.objects.annotate(
+        completed_appointments=Count(
+            'staffspecialty__staff__user__appointments_doctor',
+            filter=Q(
+                staffspecialty__staff__user__appointments_doctor__status=Appointment.Status.COMPLETED
+            ),
+            distinct=True
+        )
+    ).values('name', 'completed_appointments').order_by('name'))
+
+    def get_serviceNormal(self):
+        return list(ServiceNormal.objects.filter(
+            active = True
+        ).values('name').annotate(
+              completed_appointments=Count(
+                  'appointments_serviceNormal',
+                  filter=Q(appointments_serviceNormal__status=Appointment.Status.COMPLETED),
+              )
+        ).order_by('name'))
+
+    def get_totalSales(self, request):
+        from django.utils.timezone import make_aware
+        from datetime import datetime
+
+        start = request.query_params.get('start')  # '2026-01-01'
+        end = request.query_params.get('end')  # '2026-05-31'
+
+        start_date = make_aware(datetime.strptime(start, '%Y-%m-%d')) if start else make_aware(datetime(now().year, 1, 1))
+        end_date = make_aware(datetime.strptime(end, '%Y-%m-%d')) if end else make_aware(datetime(now().year, 12, 31))
+
+        appointment_revenue = Appointment.objects.filter(
+            status=Appointment.Status.COMPLETED,
+            created_date__gte=start_date,
+            created_date__lte=end_date
+        ).annotate(
+            month=TruncMonth('created_date')
+        ).values('month').annotate(
+            service_revenue=Sum('serviceNormal__price'),
+            doctor_revenue=Sum('doctor__staff_profile__price'),
+        ).order_by('month')
+
+        medicine_revenue = PrescriptionDetail.objects.filter(
+            prescription__medical_record__appointment__status=Appointment.Status.COMPLETED,
+            prescription__medical_record__appointment__created_date__gte=start_date,
+            prescription__medical_record__appointment__created_date__lte=end_date
+        ).annotate(
+            month=TruncMonth('prescription__medical_record__appointment__created_date')
+        ).values('month').annotate(
+            medicine_revenue=Sum(F('unit_price') * F('quantity')),
+        ).order_by('month')
+
+        medicine_map = {}
+        for item in medicine_revenue:
+            medicine_map[item['month']] = item['medicine_revenue'] or 0
+
+        result = []
+        for item in appointment_revenue:
+            s = item['service_revenue'] or 0
+            d = item['doctor_revenue'] or 0
+            m = medicine_map.get(item['month'], 0)
+            result.append({
+                'month': f"T{item['month'].month}/{item['month'].year}",
+                'total': s + d + m
+            })
+
+        return result
+
+# Báo cáo số lượng bệnh nhân theo độ tuổi
+# current_year = timezone.now().year
+#
+# User.objects.filter(
+#     role='customer',
+#     active=True,
+#     dob__isnull=False
+# ).annotate(
+#     age=current_year - ExtractYear('dob'),
+#     age_group=Case(
+#         When(age__lte=18, then=Value('0-18')),
+#         When(age__range=(19, 30), then=Value('19-30')),
+#         When(age__range=(31, 50), then=Value('31-50')),
+#         default=Value('50+'),
+#         output_field=CharField()
+#     )
+# ).values('age_group').annotate(
+#     completed_appointments=Count(
+#         'appointments_customer',
+#         filter=Q(appointments_customer__status=Appointment.Status.COMPLETED)
+#     )
+# ).order_by('age_group')
+
+# theo giới tính
+# User.objects.filter(
+#     role='customer',
+#     active=True,
+# ).values('gender').annotate(
+#     Count_gender=Count(
+#         'appointments_customer',
+#         filter=Q(appointments_customer__status=Appointment.Status.COMPLETED)
+#     )
+# ).order_by('gender')
+
+# theo chuyên khoa
+# User.objects.filter(
+#     role='customer',
+#     active=True,
+# ).values(
+#     specialty_name=F('appointments_customer__doctor__staff_profile__specialties__name')
+# ).annotate(
+#     completed_appointments=Count(
+#         'appointments_customer',
+#         filter=Q(appointments_customer__status=Appointment.Status.COMPLETED),
+#         distinct=True
+#     )
+# ).order_by('specialty_name')
+
+# Báo cáo số lượng dịch vụ y tế
+# ServiceNormal.objects.filter(
+#      active = True
+# ).values('name').annotate(
+#       completed_appointments=Count(
+#           'appointments_serviceNormal',
+#           filter=Q(appointments_serviceNormal__status=Appointment.Status.COMPLETED),
+#       )
+# ).order_by('name')
+
+# tổng doanh thu
+# Appointment.objects.filter(
+#     status=Appointment.Status.COMPLETED
+# ).annotate(
+#     month=TruncMonth('updated_date')
+# ).values('month').annotate(
+#     total_revenue=Sum(
+#         F('serviceNormal__price') +
+#         F('doctor__staff_profile__price')
+#     )
+# ).order_by('month')
+
+# medicine_revenue = PrescriptionDetail.objects.filter(
+#     prescription__medical_record__appointment__status=Appointment.Status.COMPLETED
+# ).annotate(
+#     month=TruncMonth('prescription__medical_record__appointment__updated_date')
+# ).values('month').annotate(
+#     medicine_revenue=Coalesce(Sum(F('unit_price') * F('quantity')), Value(0.0))
+# ).order_by('month')

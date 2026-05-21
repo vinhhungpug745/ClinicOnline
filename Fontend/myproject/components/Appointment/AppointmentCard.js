@@ -99,7 +99,13 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
         <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleOutsidePress}
-            onLongPress={((user?.role === "doctor" && status === "Pending") || (user?.role === "doctor" && status === "Pending_payment")) ? showActions : undefined}
+            onLongPress={
+                (user?.role === "doctor" && status === "Pending") ||
+                (user?.role === "customer" && (status === "Pending" || status === "Canceled")) || 
+                (user?.role === "doctor" && status === "Pending_payment")
+                ? showActions
+                : undefined
+            }
             delayLongPress={350}
         >
             <View style={[styles.card, selected && styles.cardSelected]}>
@@ -174,10 +180,8 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
 
                         </Animated.View>
                     </View>
-                )
-                }
-
-                {user?.role === "doctor" && status === "Pending_payment" &&(
+                )}
+                {user?.role === "customer" && (status === "Pending" || status === "Canceled") && (
                     <View>
                         <View style={styles.divider} />
 
@@ -193,20 +197,18 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
                         <Animated.View style={[styles.actionWrap, { height: actionHeight, opacity: actionOpacity }]}>
                             <View style={{ flex: 1 }}>
                                 <AppButton
-                                    type="confirm"
-                                    label={"xác nhận"}
+                                    type="delete"
+                                    label={"Hủy phiếu"}
                                     style={styles.actionBtn}
                                     onPress={() => {
                                         hideActions();
-                                        onConfirm?.(id);
+                                        onReject?.(id);
                                     }}
                                 />
                             </View>
                         </Animated.View>
                     </View>
-                )
-                }    
-
+                )}
             </View>
         </TouchableOpacity>
     );

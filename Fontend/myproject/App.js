@@ -1,42 +1,42 @@
-import Login from './screens/User/Login';
-import Register from './screens/User/Register';
-import Home from './screens/Home/Home';
-import DoctorDetail from './screens/User/DoctorDetail';
-import UserProfile from './screens/User/UserProfile';
-import Booking from './screens/Appointment/Booking';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, Snackbar } from 'react-native-paper';
-import { Alert, View } from 'react-native';
-import Scheduler from './screens/User/Schedule';
-import { MyUserContext } from './utils/contexts/MyUserContext';
-import { useContext, useEffect, useReducer, useState } from 'react';
-import MyUserReducer from './utils/reducers/MyUserReducer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import ListAppointments from './screens/Appointment/ListAppointments';
-import AppointmentDetail from './screens/Appointment/AppointmentDetail';
-import MedicalRecordDetail from './screens/MedicalRecord/MedicalRecordDetail';
-import MedicalRecordList from './screens/MedicalRecord/MedicalRecordList';
-import CreateMedicalRecord from './screens/MedicalRecord/CreateMedicalRecord';
-import UpdateMedicalRecord from './screens/MedicalRecord/UpdateMedicalRecord';
-import UpdatePrescription from './screens/MedicalRecord/UpdatePrescription';
-import UpdateTestResults from './screens/MedicalRecord/UpdateTestResults';
-import ProfileDetail from './screens/User/ProfileDetail';
-import { createPublic } from './utils/apiHelper';
-import { endpoints } from './configs/Apis';
-import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
-import SnackbarProvider from './utils/contexts/SnackBarContext';
+import Login from "./screens/User/Login";
+import Register from "./screens/User/Register";
+import Home from "./screens/Home/Home";
+import DoctorDetail from "./screens/User/DoctorDetail";
+import UserProfile from "./screens/User/UserProfile";
+import Booking from "./screens/Appointment/Booking";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Icon, Snackbar } from "react-native-paper";
+import { Alert, View } from "react-native";
+import Scheduler from "./screens/User/Schedule";
+import { MyUserContext } from "./utils/contexts/MyUserContext";
+import { useContext, useEffect, useReducer, useState } from "react";
+import MyUserReducer from "./utils/reducers/MyUserReducer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
+import ListAppointments from "./screens/Appointment/ListAppointments";
+import AppointmentDetail from "./screens/Appointment/AppointmentDetail";
+import MedicalRecordDetail from "./screens/MedicalRecord/MedicalRecordDetail";
+import MedicalRecordList from "./screens/MedicalRecord/MedicalRecordList";
+import CreateMedicalRecord from "./screens/MedicalRecord/CreateMedicalRecord";
+import UpdateMedicalRecord from "./screens/MedicalRecord/UpdateMedicalRecord";
+import UpdatePrescription from "./screens/MedicalRecord/UpdatePrescription";
+import UpdateTestResults from "./screens/MedicalRecord/UpdateTestResults";
+import ProfileDetail from "./screens/User/ProfileDetail";
+import { createPublic } from "./utils/apiHelper";
+import { endpoints } from "./configs/Apis";
+import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env";
+import SnackbarProvider from "./utils/contexts/SnackBarContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import Workday from './screens/WorkDay/Workday';
-import AlertProvider, { useAlert } from './utils/contexts/AlertContext';
-import Information from './screens/Home/Information';
-import Mystyles from './styles/Mystyles';
-import COLORS from './styles/Colors';
-import Chat from './screens/BoxChat/Chat';
-import Search from './screens/Home/Search';
-
+import Workday from "./screens/WorkDay/Workday";
+import AlertProvider, { useAlert } from "./utils/contexts/AlertContext";
+import Information from "./screens/Home/Information";
+import Mystyles from "./styles/Mystyles";
+import COLORS from "./styles/Colors";
+import Chat from "./screens/BoxChat/Chat";
+import Search from "./screens/Home/Search";
+import Total from "./screens/Report/Total";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -45,7 +45,10 @@ const StackUserNavigator = () => {
   const { user } = useContext(MyUserContext);
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={"UserProfile"}>
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={"UserProfile"}
+    >
       <Stack.Screen name="UserProfile" component={UserProfile} />
       <Stack.Screen name="Information" component={Information} />
       {user ? (
@@ -61,7 +64,7 @@ const StackUserNavigator = () => {
       )}
     </Stack.Navigator>
   );
-}
+};
 
 const StackHomeNavigator = () => {
   return (
@@ -71,7 +74,7 @@ const StackHomeNavigator = () => {
       <Stack.Screen name="Search" component={Search} />
     </Stack.Navigator>
   );
-}
+};
 
 const AppointmentNavigator = () => {
   return (
@@ -81,7 +84,7 @@ const AppointmentNavigator = () => {
       <Stack.Screen name="AppointmentDetail" component={AppointmentDetail} />
     </Stack.Navigator>
   );
-}
+};
 
 const ListAppointmentNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -103,7 +106,6 @@ const MedicalRecordNavigator = () => (
   </Stack.Navigator>
 );
 
-
 const TabNavigatior = () => {
   const { user } = useContext(MyUserContext);
 
@@ -113,7 +115,7 @@ const TabNavigatior = () => {
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textLight,
-        unmountOnBlur: true
+        unmountOnBlur: true,
       }}
     >
       <Tab.Screen
@@ -121,73 +123,120 @@ const TabNavigatior = () => {
         component={StackHomeNavigator}
         options={{
           tabBarLabel: "Trang chủ",
-          tabBarIcon: ({ color }) => <Icon size={22} source="home-outline" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon size={22} source="home-outline" color={color} />
+          ),
         }}
       />
-      <Tab.Screen
-        name="BookingTab"
-        component={AppointmentNavigator}
-        options={{
-          tabBarLabel: "Đặt lịch",
-          tabBarIcon: ({ color }) => <Icon size={22} source="calendar-plus" color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="ChatTab"
-        component={Chat}
-        options={{
-          tabBarLabel: "Chatbox hỗ trợ",
-          tabBarIcon: ({ color }) => <Icon size={22} source="message-text" color={color} />,
-        }}
-      />
+    
 
-        <Tab.Screen
-          name="WorkdayTab"
-          component={Workday}
-          options={{
-            tabBarLabel: "Lịch làm",
-            tabBarIcon: ({ color }) => <Icon size={22} source="calendar-check-outline" color={color} />,
-          }}
-        />
+      {!user?.is_superuser && (
+        <>
+          <Tab.Screen
+            name="ChatTab"
+            component={Chat}
+            options={{
+              tabBarLabel: "Chatbox hỗ trợ",
+              tabBarIcon: ({ color }) => (
+                <Icon size={22} source="message-text" color={color} />
+              ),
+            }}
+          />
+          {user?.role === "doctor" || user?.role === "healthcare" ? (
+            <Tab.Screen
+              name="WorkdayTab"
+              component={Workday}
+              options={{
+                tabBarLabel: "Lịch làm",
+                tabBarIcon: ({ color }) => (
+                  <Icon
+                    size={22}
+                    source="calendar-check-outline"
+                    color={color}
+                  />
+                ),
+              }}
+            />
+          ) : (
+            <Tab.Screen
+              name="BookingTab"
+              component={AppointmentNavigator}
+              options={{
+                tabBarLabel: "Đặt lịch",
+                tabBarIcon: ({ color }) => (
+                  <Icon size={22} source="calendar-plus" color={color} />
+                ),
+              }}
+            />
+          )}
+          <Tab.Screen
+            name="AppointmentsTab"
+            component={ListAppointmentNavigator}
+            options={{
+              tabBarLabel: "Lịch hẹn",
+              tabBarIcon: ({ color }) => (
+                <Icon size={22} source="clipboard-list-outline" color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="MedicalRecordTab"
+            component={MedicalRecordNavigator}
+            options={{
+              tabBarLabel: "Bệnh án",
+              tabBarIcon: ({ color }) => (
+                <Icon size={20} source="file-document" color={color} />
+              ),
+            }}
+          />
+        </>
+      )}
 
-      <Tab.Screen
-        name="AppointmentsTab"
-        component={ListAppointmentNavigator}
-        options={{
-          tabBarLabel: "Lịch hẹn",
-          tabBarIcon: ({ color }) => <Icon size={22} source="clipboard-list-outline" color={color} />,
-        }}
-      />
-      <Tab.Screen 
-        name="MedicalRecordTab" 
-        component={MedicalRecordNavigator} 
-        options={{ 
-          tabBarLabel: 'Bệnh án', 
-          tabBarIcon: ({ color }) => <Icon size={20} source="file-document"  color={color} /> }} 
-      />
+      {user?.is_superuser && (
+        <>
+          <Tab.Screen
+            name="CreateStaff"
+            component={() => <Register is_superuser={true} />}
+            options={{
+              tabBarLabel: "Tạo tài khoản nhân viên",
+              tabBarIcon: ({ color }) => (
+                <Icon size={22} source="account-circle-outline" color={color} />
+              ),
+            }}
+          />
+          <Tab.Screen
+            name="Total"
+            component={Total}
+            options={{
+              tabBarLabel: "Thống kê",
+              tabBarIcon: ({ color }) => (
+                <Icon size={22} source="account-circle-outline" color={color} />
+              ),
+            }}
+          />
+        </>
+      )}
+
       <Tab.Screen
         name="UserTab"
         component={StackUserNavigator}
         options={{
           tabBarLabel: "Tài khoản",
-          tabBarIcon: ({ color }) => <Icon size={22} source="account-circle-outline" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon size={22} source="account-circle-outline" color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
-    
   );
 };
 
 const App = () => {
-
   const [user, dispatch] = useReducer(MyUserReducer, null);
-  // const { showAlert } = useAlert()
   const loadUser = async () => {
     try {
       const savedStr = await SecureStore.getItemAsync("user");
       const saved = savedStr ? JSON.parse(savedStr) : null;
-
-      console.log("Saved user loaded:", saved);
 
       if (saved === null) return;
 
@@ -234,13 +283,12 @@ const App = () => {
             //     },
             //   ],
             // })
-          }
+          },
         );
       } else {
         console.log("Token hợp lệ, đăng nhập tự động");
         dispatch({ type: "LOGIN", payload: saved });
       }
-
     } catch (err) {
       console.error("loadUser error:", err);
       dispatch({ type: "LOGOUT" });
@@ -249,8 +297,7 @@ const App = () => {
 
   useEffect(() => {
     loadUser();
-  }, [])
-
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -265,6 +312,6 @@ const App = () => {
       </MyUserContext.Provider>
     </SafeAreaProvider>
   );
-}
+};
 
 export default App;
