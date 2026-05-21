@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from cliniconlineapi.models import MedicalRecord, Appointment, Prescription, PrescriptionDetail, TestResult
+from cliniconlineapi.serializers.AppointmentSerializer import AppointmentSerializer
 from cliniconlineapi.serializers.MedicalSerializer import PrescriptionCreateSerializer, PrescriptionDetailedSerializer,PrescriptionNestedCreateSerializer
 from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer, TestResultCreateSerializer, \
     TestResultNestedCreateSerializer
@@ -11,9 +12,8 @@ from cliniconlineapi.validators import MedicalRecordDataValidator
 
 
 class MedicalRecordListSerializer(serializers.ModelSerializer):
-    customer_name = serializers.SerializerMethodField()
-    doctor_id = serializers.IntegerField(source='appointment.doctor.id',read_only=True)
-    doctor_name = serializers.SerializerMethodField()
+    doctor = serializers.SerializerMethodField()
+    customer = serializers.SerializerMethodField()
     has_prescription = serializers.SerializerMethodField()
     has_test_result = serializers.SerializerMethodField()
     test_result_count = serializers.SerializerMethodField()
@@ -23,9 +23,8 @@ class MedicalRecordListSerializer(serializers.ModelSerializer):
         model = MedicalRecord
         fields = [
             'id',
-            'customer_name',
-            'doctor_id',
-            'doctor_name',
+            'doctor',
+            'customer',
             'diagnosis',
             'symptoms',
             'follow_up_date',
@@ -35,11 +34,23 @@ class MedicalRecordListSerializer(serializers.ModelSerializer):
             'created_date'
         ]
 
-    def get_customer_name(self, obj):
-        return obj.appointment.customer.get_full_name()
+    def get_doctor(self, obj):
+        doctor = obj.appointment.doctor
+        return {
+            "id": doctor.id,
+            "first_name": doctor.first_name,
+            "last_name": doctor.last_name,
+            "avatar": doctor.avatar.url if doctor.avatar else None,
+        }
 
-    def get_doctor_name(self, obj):
-        return obj.appointment.doctor.get_full_name()
+    def get_customer(self, obj):
+        customer = obj.appointment.customer
+        return {
+            "id": customer.id,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "avatar": customer.avatar.url if customer.avatar else None,
+        }
 
     def get_has_prescription(self, obj):
         try:
@@ -48,17 +59,15 @@ class MedicalRecordListSerializer(serializers.ModelSerializer):
             return False
 
     def get_has_test_result(self, obj):
-        try:
-            return obj.test_results is not None
-        except TestResult.DoesNotExist:
-            return False
+        return obj.test_results.exists()
 
     def get_test_result_count(self, obj):
         return obj.test_results.count()
 
 class MedicalRecordDetailSerializer(serializers.ModelSerializer):
-    customer_info = serializers.SerializerMethodField()
-    doctor_info = serializers.SerializerMethodField()
+    appointment_id = serializers.IntegerField(source='appointment.id', read_only=True)
+    customer = serializers.SerializerMethodField()
+    doctor = serializers.SerializerMethodField()
     appointment_date = serializers.DateTimeField(source='appointment.appointment_date',read_only=True)
     prescription = PrescriptionDetailedSerializer(read_only=True)
     test_results = TestResultSerializer(many=True, read_only=True)
@@ -67,8 +76,9 @@ class MedicalRecordDetailSerializer(serializers.ModelSerializer):
         model = MedicalRecord
         fields = [
             'id',
-            'customer_info',
-            'doctor_info',
+            'appointment_id',
+            'customer',
+            'doctor',
             'appointment_date',
             'diagnosis',
             'symptoms',
@@ -80,15 +90,30 @@ class MedicalRecordDetailSerializer(serializers.ModelSerializer):
             'updated_date',
         ]
 
-    def get_customer_info(self, obj):
+
+    def get_customer(self, obj):
         customer = obj.appointment.customer
+        profile = getattr(customer, 'customer_profile', None)
         return {
-            'id': customer.id,
-            'name': customer.get_full_name(),
-            'phone': customer.phone,
+            "id": customer.id,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "phone": customer.phone,
+            "email": customer.email,
+            "gender": customer.gender,
+            "dob": customer.dob,
+            "profile": {
+                "insurance_number": profile.insurance_number if profile else None,
+                "insurance_expiry_date": profile.insurance_expiry_date if profile else None,
+                "blood_group": profile.blood_group if profile else None,
+                "allergy_history": profile.allergy_history if profile else None,
+                "height": profile.height if profile else None,
+                "weight": profile.weight if profile else None,
+            } if profile else None,
         }
+
     #Lấy thong tin bác sĩ cho hồ sơ bênh án nếu cần
-    def get_doctor_info(self, obj):
+    def get_doctor(self, obj):
         doctor = obj.appointment.doctor
         specialties = []
         if hasattr(doctor, 'staff_profile'):
@@ -97,7 +122,8 @@ class MedicalRecordDetailSerializer(serializers.ModelSerializer):
                 for s in doctor.staff_profile.specialties.all()
             ]
         return {
-            'name': doctor.get_full_name(),
+            "first_name": doctor.first_name,
+            "last_name": doctor.last_name,
             'phone': doctor.phone,
             'specialties': specialties
         }
@@ -193,11 +219,12 @@ class MedicalRecordCreateSerializer(serializers.ModelSerializer):
                 medical_notes=validated_data.get('medical_notes'),
                 follow_up_date=validated_data.get('follow_up_date')
             )
-            for test in test_results_data:
+            for test_data in test_results_data:
                 TestResult.objects.create(
                     medical_record=medical_record,
-                    test_name=test['test_name'],
-                    result=test['result']
+                    test=test_data['test'],
+                    result=test_data['result'],
+                    file=test_data.get('file')
                 )
 
             if prescription_data:

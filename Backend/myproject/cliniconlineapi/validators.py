@@ -593,6 +593,7 @@ class TestResultValueValidator:
             raise ValidationError(errors)
 
 
+
 class TestResultCreatePermissionValidator:
     def __call__(self, medical_record, user):
         if medical_record.appointment.doctor != user:
@@ -609,14 +610,19 @@ class TestResultDataValidator:
     def __init__(self):
         self.name_validator = TestResultNameValidator()
         self.result_validator = TestResultValueValidator()
+        self.test_result_price_validator = PriceValidator()
         self.create_permission_validator = TestResultCreatePermissionValidator()
         self.update_permission_validator = TestResultUpdatePermissionValidator()
+
 
     def validate_test_name(self, value):
         self.name_validator(value)
 
     def validate_result(self, value):
         self.result_validator(value)
+
+    def validate_test_result_price(self,value):
+        self.test_result_price_validator(value)
 
     def validate_create_permission(self, medical_record, user):
         self.create_permission_validator(medical_record, user)

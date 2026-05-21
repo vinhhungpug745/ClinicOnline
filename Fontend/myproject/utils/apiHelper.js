@@ -14,7 +14,9 @@ const handleError = (err, onError) => {
         onError?.("network", "Không thể kết nối. Kiểm tra lại mạng.");
     }
 
-    console.error("API Error:", err.message || err);
+    if (!status || status >= 500) {
+        console.error("API Error:", err.message || err);
+    }
 };
 
 // ============ CÓ AUTH ============
@@ -84,7 +86,19 @@ export const fetchPublic = async (endpoint, onSuccess, onError, params = {}, set
 export const createPublic = async (endpoint, body, onSuccess, onError, headers = {}, onFinally, setLoading) => {
     setLoading?.(true);
     try {
-        let res = await Apis.post(endpoint, body, { headers });
+        // Tự detect Content-Type dựa vào kiểu của body
+        const isFormData = body instanceof FormData;
+        const isUrlEncoded = typeof body === 'string';
+
+        const defaultHeaders = isFormData
+            ? { 'Content-Type': 'multipart/form-data' }
+            : isUrlEncoded
+                ? { 'Content-Type': 'application/x-www-form-urlencoded' }
+                : { 'Content-Type': 'application/json' };
+
+        // headers truyền vào sẽ override nếu muốn custom
+        const mergedHeaders = { ...defaultHeaders, ...headers };
+        let res = await Apis.post(endpoint, body, { headers: mergedHeaders });
         if (res.status === 200 || res.status === 201) onSuccess(res.data);
     } catch (err) { handleError(err, onError); }
     finally {

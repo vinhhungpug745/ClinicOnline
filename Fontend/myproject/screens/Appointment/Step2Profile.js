@@ -56,7 +56,7 @@ const Step2Profile = () => {//{ data, updatePatient, updateProfile }
                 <AppButton
                     type="edit"
                     label="Cập nhật sơ yếu lí lịch"
-                    onPress={() => navigation.navigate("User", { screen: "ProfileDetail" })}
+                    onPress={() => navigation.navigate("UserTab", { screen: "ProfileDetail" })}
                 />
             </View>
             <View pointerEvents={"none"}>

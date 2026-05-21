@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState } from "react";
-import { ScrollView, View, ActivityIndicator } from "react-native";
+import { useContext, useEffect, useState, useCallback } from "react";
+import { ScrollView, View, ActivityIndicator ,Text} from "react-native";
 import { fetchWithAuth, updatePatchWithAuth } from "../../utils/apiHelper";
 import { endpoints } from "../../configs/Apis";
 import AppSnackbar from "../../components/AppSnackbar";
@@ -12,7 +12,7 @@ import { MyUserContext } from "../../utils/contexts/MyUserContext";
 import { Button } from "react-native-paper";
 import AppButton from "../../components/AppButton";
 import AppHeader from "../../components/AppHeader";
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation , useFocusEffect} from '@react-navigation/native';
 
 const AppointmentDetail = ({ route }) => {
     const navigation = useNavigation();
@@ -31,9 +31,11 @@ const AppointmentDetail = ({ route }) => {
         );
     };
 
-    useEffect(() => {
-        loadAppointmentDetail();
-    }, [id]);
+    useFocusEffect(
+        useCallback(() => {
+            loadAppointmentDetail();
+        }, [id])
+    );
 
 
 
@@ -71,6 +73,7 @@ const AppointmentDetail = ({ route }) => {
     console.log("role:", user?.role);
     console.log("status:", appointmentDetail?.status);
     console.log("check:", user?.role === "doctor" && appointmentDetail?.status === "Pending");
+    console.log("has_medical_record:", appointmentDetail?.has_medical_record);
     return (
         <View style={{ flex: 1, backgroundColor: COLORS.bg, }}>
             <AppHeader titles="Chi tiết lịch hẹn" onBack={() => {
@@ -125,8 +128,13 @@ const AppointmentDetail = ({ route }) => {
                 />
 
             </ScrollView>
-            {user?.role === "doctor" && appointmentDetail.status === "Confirmed" && (
-                <>
+
+            {user?.role === "doctor" &&  (
+                appointmentDetail.has_medical_record ? (
+                    <View style={{ marginHorizontal: 16, marginVertical: 16, padding: 12, backgroundColor: "#E8F5E9", borderRadius: 8, alignItems: "center" }}>
+                    <Text style={{ color: "#2E7D32", fontWeight: "600" }}>✓ Đã có hồ sơ bệnh án</Text>
+                    </View>
+                ):(
                     <Button
                         mode="contained"
                         style={[Mystyles.primaryButton, { marginVertical: 16, marginHorizontal: 16 }]}
@@ -138,7 +146,7 @@ const AppointmentDetail = ({ route }) => {
                     >
                         Tạo hồ sơ bệnh án
                     </Button>
-                </>
+                )
 
             )}
             {user?.role === "doctor" && appointmentDetail.status === "Pending" && (

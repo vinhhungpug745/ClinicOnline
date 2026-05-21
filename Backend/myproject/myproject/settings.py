@@ -67,13 +67,16 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 #
-OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
+# OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
+OAUTH2_PROVIDER = {
+    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.OAuthLibCore'
+}
 
 ALLOWED_HOSTS = [
     '192.168.100.110',#huy
     '192.168.100.173',
     'localhost',
-    '192.168.219.1' #hung
+    '192.168.100.152' #hung
 ]
 
 ROOT_URLCONF = 'myproject.urls'

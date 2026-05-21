@@ -106,19 +106,15 @@ class PrescriptionDetailCreateSerializer(serializers.ModelSerializer):
 
 #Hiển thị 1 dòng thuốc trong đơn
 class PrescriptionDetailItemSerializer(serializers.ModelSerializer):
-    medicine_name = serializers.CharField(
-        source='medicine.name',
-        read_only=True
-    )
-    medicine_unit = serializers.CharField(
-        source='medicine.unit',
-        read_only=True
-    )
+    medicine_name = serializers.CharField(source='medicine.name',read_only=True)
+    medicine_unit = serializers.CharField(source='medicine.unit',read_only=True)
+    medicine_id =serializers.IntegerField(source='medicine.id', read_only=True)
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = PrescriptionDetail
         fields = [
+            'medicine_id',
             'medicine_name',
             'medicine_unit',
             'quantity',

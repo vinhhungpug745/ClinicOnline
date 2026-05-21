@@ -99,7 +99,7 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
         <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleOutsidePress}
-            onLongPress={user.role === "doctor" && status === "Pending" ? showActions : undefined}
+            onLongPress={((user?.role === "doctor" && status === "Pending") || (user?.role === "doctor" && status === "Pending_payment")) ? showActions : undefined}
             delayLongPress={350}
         >
             <View style={[styles.card, selected && styles.cardSelected]}>
@@ -134,7 +134,7 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
                     <InfoRow label="Khung giờ" value={time} />
                 </View>
 
-                {user.role === "doctor" && status === "Pending" &&(
+                {user?.role === "doctor" && status === "Pending" &&(
                     <View>
                         <View style={styles.divider} />
 
@@ -175,7 +175,38 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
                         </Animated.View>
                     </View>
                 )
-            }
+                }
+
+                {user?.role === "doctor" && status === "Pending_payment" &&(
+                    <View>
+                        <View style={styles.divider} />
+
+                        {/* ── Footer ── */}
+                        <View style={styles.footer}>
+                            <Text style={styles.appointmentId}>Mã lịch hẹn #{id}</Text>
+                            {selected
+                                ? <Text style={styles.tapHint}>Nhấn ra ngoài để đóng</Text>
+                                : <Text style={styles.detailLink}>Xem chi tiết ›</Text>
+                            }
+                        </View>
+
+                        <Animated.View style={[styles.actionWrap, { height: actionHeight, opacity: actionOpacity }]}>
+                            <View style={{ flex: 1 }}>
+                                <AppButton
+                                    type="confirm"
+                                    label={"xác nhận"}
+                                    style={styles.actionBtn}
+                                    onPress={() => {
+                                        hideActions();
+                                        onConfirm?.(id);
+                                    }}
+                                />
+                            </View>
+                        </Animated.View>
+                    </View>
+                )
+                }    
+
             </View>
         </TouchableOpacity>
     );

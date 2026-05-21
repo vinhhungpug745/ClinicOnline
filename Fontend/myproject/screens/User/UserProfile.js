@@ -26,6 +26,7 @@ import { CLIENT_ID_APP, CLIENT_SECRET_APP } from "@env"
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSnackbar } from '../../utils/contexts/SnackBarContext';
 import { TYPE_INFORMATION } from '../../utils/mapping';
+import qs from "qs";
 
 const MENU_SECTIONS = [
     {
@@ -62,13 +63,15 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
         const token = await AsyncStorage.getItem("access_token");
         await createPublic(
             endpoints.logout,
+            qs.stringify(
             {
                 token: token,
                 client_id: CLIENT_ID_APP,
                 client_secret: CLIENT_SECRET_APP,
-            },
+            }),
             () => {showSnackbar('Đăng xuất thành công', 'success');},
             (err) => showSnackbar(err, 'error', 'Đăng xuất thất bại'),
+
             {},
             async () => {
                 await SecureStore.deleteItemAsync("user");
@@ -128,7 +131,7 @@ const UserProfile = ({ navigation, onLogin, onRegister, onMenuItem }) => {
                                         Chào mừng bạn đã trở lại! Hãy khám phá các dịch vụ của chúng tôi.
                                     </Text>
                                 </View>
-                                {user.role == "doctor" && (
+                                {user?.role == "doctor" && (
                                     <AppButton
                                         type="book"
                                         style={{ borderWidth: 1, borderColor: "#FFFFFF" }}

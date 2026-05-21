@@ -1,27 +1,35 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from cliniconlineapi.models import TestResult, MedicalRecord
+from cliniconlineapi.models import TestResult, MedicalRecord, Test
 from cliniconlineapi.validators import TestResultDataValidator
 
 
+class TestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Test
+        fields = ['id', 'name', 'price', 'description']
+
 class TestResultSerializer(serializers.ModelSerializer):
+    test = TestSerializer(read_only=True)
     class Meta:
         model = TestResult
-        fields = ['id', 'test_name', 'result']
+        fields = ['id', 'test', 'result', 'file', 'created_date']
 
 
 class TestResultNestedCreateSerializer(serializers.ModelSerializer):
+    test_id = serializers.PrimaryKeyRelatedField(queryset=Test.objects.all(),source='test', write_only=True)
     class Meta:
         model = TestResult
-        fields = ['test_name', 'result']
+        fields = ['test_id', 'result','file']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.validator = TestResultDataValidator()
 
-    def validate_test_name(self, value):
-        self.validator.validate_test_name(value)
+    def validate_test(self, value):
+        if not value:
+            raise serializers.ValidationError("Phải chọn loại xét nghiệm")
         return value
 
     def validate_result(self, value):
@@ -35,17 +43,23 @@ class TestResultCreateSerializer(serializers.ModelSerializer):
         source='medical_record',
         write_only=True
     )
+    test_id = serializers.PrimaryKeyRelatedField(
+        queryset=Test.objects.all(),
+        source='test',
+        write_only=True
+    )
 
     class Meta:
         model = TestResult
-        fields = ['medical_record_id', 'test_name', 'result']
+        fields = ['medical_record_id', 'test_id', 'result','file']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.validator = TestResultDataValidator()
 
-    def validate_test_name(self, value):
-        self.validator.validate_test_name(value)
+    def validate_test(self, value):
+        if not value:
+            raise serializers.ValidationError("Phải chọn loại xét nghiệm")
         return value
 
     def validate_result(self, value):
@@ -89,8 +103,9 @@ class TestResultBulkCreateSerializer(serializers.Serializer):
                 created.append(
                     TestResult.objects.create(
                         medical_record=medical_record,
-                        test_name=test['test_name'],
-                        result=test['result']
+                        test=test['test'],
+                        result=test['result'],
+                        file=test.get('file', None),
                     )
                 )
         return created
@@ -98,16 +113,18 @@ class TestResultBulkCreateSerializer(serializers.Serializer):
 class TestResultUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestResult
-        fields = ['test_name', 'result']
+        fields = ['result','file']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.validator = TestResultDataValidator()
 
-    def validate_test_name(self, value):
-        self.validator.validate_test_name(value)
-        return value
 
     def validate_result(self, value):
         self.validator.validate_result(value)
         return value
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        self.validator.validate_update_permission(self.instance, request.user)
+        return attrs

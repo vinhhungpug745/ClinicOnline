@@ -121,6 +121,7 @@ class TimeSlot(BaseModel):
 class ServiceNormal(BaseModel):
     name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True,max_length=200,null=True)
+    price = models.FloatField(null=True, blank=True, default=0)
 
 # Lịch hẹn
 class Appointment(BaseModel):
@@ -177,7 +178,7 @@ class Medicine(BaseModel):
     stock = models.IntegerField(default=0)
     production_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True,blank=True)
-    price = models.FloatField(default=0)
+    price = models.FloatField(null=True, blank=True,default=0)
 
     def __str__(self):
         return f"{self.name} ({self.stock} {self.unit})"
@@ -221,11 +222,19 @@ class PrescriptionDetail(BaseModel):
         return f"{self.medicine.name} x{self.quantity}"
 
 #kết quả xét nghiệm
+class Test(BaseModel):
+    name = models.CharField(max_length=200, unique=True)
+    price = models.FloatField(null=True, blank=True,default=0)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.price}đ"
+
 class TestResult(BaseModel):
     medical_record = models.ForeignKey(MedicalRecord, on_delete=models.CASCADE, related_name="test_results")
-    test_name = models.CharField(max_length=200)
+    test = models.ForeignKey(Test, on_delete=models.PROTECT,null=True,blank=True)
     result = models.TextField()
     file = CloudinaryField(null=True, blank=True)   # Upload file PDF/ảnh
 
     def __str__(self):
-        return f"{self.test_name} - {self.medical_record}"
+        return f"{self.test.name} - {self.medical_record}"

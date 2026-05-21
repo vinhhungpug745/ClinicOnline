@@ -9,7 +9,8 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.response import Response
 from cliniconlineapi import paginators, permission
-from cliniconlineapi.models import User, Specialty, StaffProfile, WorkDay,Appointment,TimeSlot, Medicine, MedicalRecord, TestResult, Prescription
+from cliniconlineapi.models import User, Specialty, StaffProfile, WorkDay, Appointment, TimeSlot, Medicine, \
+    MedicalRecord, TestResult, Prescription, Test
 from cliniconlineapi.serializers import userserializer, ChatBoxSerializer
 from cliniconlineapi.serializers.AppointmentSerializer import AppointmentSerializer, AppointmentDetailSerializer
 from cliniconlineapi.serializers.ChatBoxSerializer import GeminiChatSerializer
@@ -18,7 +19,7 @@ from cliniconlineapi.serializers.MedicalRecordSerializer import MedicalRecordUpd
 from cliniconlineapi.serializers.MedicalSerializer import PrescriptionDetailedSerializer, PrescriptionCreateSerializer, \
     MedicineSerializer, PrescriptionUpdateSerializer
 from cliniconlineapi.serializers.TestResultSerializer import TestResultSerializer, TestResultCreateSerializer, \
-    TestResultUpdateSerializer, TestResultBulkCreateSerializer
+    TestResultUpdateSerializer, TestResultBulkCreateSerializer, TestSerializer
 from cliniconlineapi.serializers.userserializer import WorkDaySerializer, TimeSlotSerializer, SpecialtySerializer, \
     WorkDayLiteSerializer, DoctorSerializer
 import google.generativeai as genai
@@ -334,14 +335,14 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
         return [permission.IsAuthenticated()]
 
 
-    def list(self, request):
+    def list(self, request, *args, **kwargs):
         queryset = self.queryset
         serializer = MedicineSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
 
-    def create(self,request):
+    def create(self,request, *args, **kwargs):
         s = MedicineSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         s.save()
@@ -438,10 +439,17 @@ class PrescriptionViewSet(viewsets.ViewSet, generics.ListCreateAPIView):
         )
 
 #Kết quả xét nghiệm
-class TestResultViewSet(viewsets.ViewSet,generics.ListCreateAPIView,generics.RetrieveDestroyAPIView):
-    queryset = TestResult.objects.filter(active=True)
+class TestViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Test.objects.all()
+    serializer_class = TestSerializer
+    permission_classes = [permission.IsAuthenticated]
+
+
+class TestResultViewSet(viewsets.ModelViewSet):
+    queryset = TestResult.objects.select_related('test', 'medical_record')
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = TestResultSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete']
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -454,6 +462,7 @@ class TestResultViewSet(viewsets.ViewSet,generics.ListCreateAPIView,generics.Ret
     def get_queryset(self):
         user = self.request.user
         qs = self.queryset.select_related(
+            'test',
             'medical_record__appointment__customer',
             'medical_record__appointment__doctor'
         )
@@ -471,13 +480,13 @@ class TestResultViewSet(viewsets.ViewSet,generics.ListCreateAPIView,generics.Ret
     def create(self,request, *args, **kwargs):
         serializer = TestResultBulkCreateSerializer(data=request.data,context={'request': request})
         serializer.is_valid(raise_exception=True)
-        testresult = serializer.save()
+        testresults = serializer.save()
         return Response(
-            TestResultSerializer(testresult,many=True).data,
+            TestResultSerializer(testresults,many=True).data,
             status=status.HTTP_201_CREATED
         )
 
-    def partial_update(self, request, pk=None):
+    def partial_update(self, request, pk=None, *args, **kwargs):
         test_result = get_object_or_404(TestResult, pk=pk, active=True)
 
         validator = TestResultDataValidator()

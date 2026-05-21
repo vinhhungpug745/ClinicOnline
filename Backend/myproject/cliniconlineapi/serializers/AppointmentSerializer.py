@@ -23,7 +23,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if self.instance:
             current_status = self.instance.status
 
-            if value not in [Appointment.Status.CANCELED, Appointment.Status.CONFIRMED]:
+            allowed_status = [
+                Appointment.Status.CANCELED,
+                Appointment.Status.CONFIRMED,
+                Appointment.Status.PENDING_PAYMENT,
+                Appointment.Status.COMPLETED,
+            ]
+
+            if value not in allowed_status:
                 raise serializers.ValidationError("Trạng thái không hợp lệ.")
 
             if current_status == Appointment.Status.CANCELED and value == Appointment.Status.CONFIRMED:
@@ -31,6 +38,16 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
             if current_status == Appointment.Status.CONFIRMED and value == Appointment.Status.CANCELED:
                 raise serializers.ValidationError("Không thể hủy phiếu đã được xác nhận.")
+
+            # validate khi hoàn thành khám
+            if value == Appointment.Status.PENDING_PAYMENT:
+                try:
+                    record = self.instance.medical_record
+                except:
+                    raise serializers.ValidationError("Chưa có hồ sơ bệnh án")
+
+                if not hasattr(record, "prescription"):
+                    raise serializers.ValidationError("Chưa có đơn thuốc")
 
         return value
 
@@ -82,5 +99,12 @@ class AppointmentDetailSerializer(AppointmentSerializer):
         data = super().to_representation(instance)
         data["customer"] = UserDetailSerializer(instance.customer).data
         data["doctor"] = UserSerializer(instance.doctor).data
+        try:
+            record = instance.medical_record
+            print("medicalrecord:", record)
+            data["has_medical_record"] = record is not None
+        except Exception as e:
+            print("Exception:", e)
+            data["has_medical_record"] = False
         return data
 

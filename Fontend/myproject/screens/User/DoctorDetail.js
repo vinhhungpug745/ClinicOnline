@@ -163,7 +163,7 @@ const DoctorDetail = ({ route }) => {
                 label="Đặt lịch khám"
                 icon="calendar-plus"
                 onPress={() => {
-                    navigation.navigate("Booking", {
+                    navigation.navigate("BookingTab", {
                         screen: "Booking",
                         params: {
                             doctor: { 

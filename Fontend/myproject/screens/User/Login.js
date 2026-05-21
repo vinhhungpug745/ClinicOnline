@@ -14,19 +14,22 @@ import AppButton from "../../components/AppButton";
 import { createPublic, fetchPublic, fetchWithAuth } from "../../utils/apiHelper";
 import { useSnackbar } from "../../utils/contexts/SnackBarContext";
 import AppHeader from "../../components/AppHeader";
+import qs from "qs";
 
 const Login = ({ navigation, route }) => {
     const [user, setUser] = useState({
         username: "",
         password: "",
     });
-    const { showSnackbar } = useSnackbar();
+const { showSnackbar } = useSnackbar();
 
     useEffect(() => {
         if (route.params?.successMessage) {
             showSnackbar(route.params.successMessage, "success");
         }
-    }, [route.params?.successMessage]);
+    }, 
+    [route.params?.successMessage]);
+
 
     const info = [
         {
@@ -84,13 +87,14 @@ const Login = ({ navigation, route }) => {
         if (Object.keys(err).length === 0) {
             await createPublic(
                 endpoints.login,
+                qs.stringify(
                 {
                     username: user.username,
                     password: user.password,
                     client_id: CLIENT_ID_APP,
                     client_secret: CLIENT_SECRET_APP,
                     grant_type: "password",
-                },
+                }),
                 async (dataToken) => {
                     await AsyncStorage.setItem("access_token", dataToken.access_token);
 
@@ -106,7 +110,7 @@ const Login = ({ navigation, route }) => {
                                 }
                                 await SecureStore.setItemAsync("user", JSON.stringify(toSave));
 
-                                navigation.navigate("Home", {
+                                navigation.navigate("HomeTab", {
                                     screen: "Home",
                                     params: {
                                         successMessage: "Chào mừng bạn đã trở lại!",

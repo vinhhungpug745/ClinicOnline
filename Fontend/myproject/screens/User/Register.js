@@ -177,7 +177,8 @@ const Register = ({ navigation }) => {
                         showSnackbar("Đăng ký thất bại!", "error", msg);
                     }
                 },
-                { 'Content-Type': 'multipart/form-data' }, null,
+                { 'Content-Type': 'multipart/form-data' }, 
+                null,
                 setLoading
             );
         };

@@ -10,7 +10,7 @@ django.setup()
 
 from cliniconlineapi.models import (
     User, StaffProfile, Specialty, ServiceNormal,
-    CustomerProfile, WorkDay, TimeSlot, Medicine, Appointment,
+    CustomerProfile, WorkDay, TimeSlot, Medicine, Appointment, Test,
 )
 
 # =========================================================
@@ -264,7 +264,126 @@ for i in range(100):
     )
     if created:
         print(f"✅ Medicine: {name}")
+# =========================================================
+# TESTS (Danh sách xét nghiệm)
+# =========================================================
+tests_data = [
+    {
+        "name": "Xét nghiệm máu toàn bộ",
+        "price": 150000,
+        "description": "Kiểm tra hemoglobin, hematocrit, WBC, RBC, platelet..."
+    },
+    {
+        "name": "Xét nghiệm nước tiểu",
+        "price": 80000,
+        "description": "Kiểm tra thành phần nước tiểu, phát hiện bệnh thận..."
+    },
+    {
+        "name": "Xét nghiệm glucose",
+        "price": 50000,
+        "description": "Kiểm tra mức đường huyết, phát hiện tiểu đường"
+    },
+    {
+        "name": "Xét nghiệm chỉ số ure creatinine",
+        "price": 120000,
+        "description": "Kiểm tra chức năng thận"
+    },
+    {
+        "name": "Xét nghiệm AST ALT",
+        "price": 100000,
+        "description": "Kiểm tra chức năng gan"
+    },
+    {
+        "name": "Xét nghiệm colesterol",
+        "price": 150000,
+        "description": "Kiểm tra mức cholesterol toàn phần, HDL, LDL, triglyceride"
+    },
+    {
+        "name": "Xét nghiệm hormone tuyến giáp",
+        "price": 200000,
+        "description": "Kiểm tra TSH, T3, T4"
+    },
+    {
+        "name": "Xét nghiệm PSA",
+        "price": 180000,
+        "description": "Phát hiện ung thư tuyến tiền liệt ở nam giới"
+    },
+    {
+        "name": "Xét nghiệm CEA",
+        "price": 200000,
+        "description": "Phát hiện ung thư"
+    },
+    {
+        "name": "Xét nghiệm HIV",
+        "price": 250000,
+        "description": "Kiểm tra virus HIV"
+    },
+    {
+        "name": "CT Scan não",
+        "price": 500000,
+        "description": "Chẩn đoán hình ảnh não"
+    },
+    {
+        "name": "CT Scan ngực",
+        "price": 450000,
+        "description": "Chẩn đoán hình ảnh ngực"
+    },
+    {
+        "name": "Siêu âm tim",
+        "price": 350000,
+        "description": "Chẩn đoán bệnh tim"
+    },
+    {
+        "name": "Siêu âm ổ bụng",
+        "price": 300000,
+        "description": "Kiểm tra các cơ quan trong ổ bụng"
+    },
+    {
+        "name": "X-quang ngực",
+        "price": 200000,
+        "description": "Kiểm tra phổi"
+    },
+    {
+        "name": "ECG (Điện tâm đồ)",
+        "price": 100000,
+        "description": "Kiểm tra nhịp tim"
+    },
+    {
+        "name": "Nội soi dạ dày",
+        "price": 400000,
+        "description": "Kiểm tra dạ dày trực tiếp"
+    },
+    {
+        "name": "Nội soi đại tràng",
+        "price": 500000,
+        "description": "Kiểm tra đại tràng trực tiếp"
+    },
+    {
+        "name": "Xét nghiệm Helicobacter pylori",
+        "price": 150000,
+        "description": "Phát hiện vi khuẩn HP gây viêm dạ dày"
+    },
+    {
+        "name": "Test dị ứng",
+        "price": 300000,
+        "description": "Kiểm tra các chất gây dị ứng"
+    },
+]
 
+created_tests = []
+for test_data in tests_data:
+    test, created = Test.objects.get_or_create(
+        name=test_data["name"],
+        defaults={
+            "price": test_data["price"],
+            "description": test_data["description"],
+        }
+    )
+    created_tests.append(test)
+    if created:
+        print(f"✅ Test: {test_data['name']} - {test_data['price']:,}đ")
+    else:
+        print(f"⚠️  Test exists: {test_data['name']}")
 # =========================================================
 # WORKDAY + TIMESLOT + APPOINTMENT
 # =========================================================

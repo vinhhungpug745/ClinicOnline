@@ -17,6 +17,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import ListAppointments from './screens/Appointment/ListAppointments';
 import AppointmentDetail from './screens/Appointment/AppointmentDetail';
+import MedicalRecordDetail from './screens/MedicalRecord/MedicalRecordDetail';
+import MedicalRecordList from './screens/MedicalRecord/MedicalRecordList';
+import CreateMedicalRecord from './screens/MedicalRecord/CreateMedicalRecord';
+import UpdateMedicalRecord from './screens/MedicalRecord/UpdateMedicalRecord';
+import UpdatePrescription from './screens/MedicalRecord/UpdatePrescription';
+import UpdateTestResults from './screens/MedicalRecord/UpdateTestResults';
 import ProfileDetail from './screens/User/ProfileDetail';
 import { createPublic } from './utils/apiHelper';
 import { endpoints } from './configs/Apis';
@@ -81,6 +87,19 @@ const ListAppointmentNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ListAppointments" component={ListAppointments} />
     <Stack.Screen name="AppointmentDetail" component={AppointmentDetail} />
+    <Stack.Screen name="MedicalRecordList" component={MedicalRecordList} />
+    <Stack.Screen name="MedicalRecordDetail" component={MedicalRecordDetail} />
+    <Stack.Screen name="CreateMedicalRecord" component={CreateMedicalRecord} />
+  </Stack.Navigator>
+);
+
+const MedicalRecordNavigator = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="MedicalRecordList" component={MedicalRecordList} />
+    <Stack.Screen name="MedicalRecordDetail" component={MedicalRecordDetail} />
+    <Stack.Screen name="UpdateMedicalRecord" component={UpdateMedicalRecord} />
+    <Stack.Screen name="UpdatePrescription" component={UpdatePrescription} />
+    <Stack.Screen name="UpdateTestResults" component={UpdateTestResults} />
   </Stack.Navigator>
 );
 
@@ -98,7 +117,7 @@ const TabNavigatior = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
+        name="HomeTab"
         component={StackHomeNavigator}
         options={{
           tabBarLabel: "Trang chủ",
@@ -106,7 +125,7 @@ const TabNavigatior = () => {
         }}
       />
       <Tab.Screen
-        name="Booking"
+        name="BookingTab"
         component={AppointmentNavigator}
         options={{
           tabBarLabel: "Đặt lịch",
@@ -114,34 +133,40 @@ const TabNavigatior = () => {
         }}
       />
       <Tab.Screen
-        name="Chat"
+        name="ChatTab"
         component={Chat}
         options={{
           tabBarLabel: "Chatbox hỗ trợ",
           tabBarIcon: ({ color }) => <Icon size={22} source="message-text" color={color} />,
         }}
       />
-      {user && (user.role === "doctor" || user.role === "healthcare") && (
+
         <Tab.Screen
-          name="Workday"
+          name="WorkdayTab"
           component={Workday}
           options={{
             tabBarLabel: "Lịch làm",
             tabBarIcon: ({ color }) => <Icon size={22} source="calendar-check-outline" color={color} />,
           }}
         />
-      )}
 
       <Tab.Screen
-        name="TabAppointments"
+        name="AppointmentsTab"
         component={ListAppointmentNavigator}
         options={{
           tabBarLabel: "Lịch hẹn",
           tabBarIcon: ({ color }) => <Icon size={22} source="clipboard-list-outline" color={color} />,
         }}
       />
+      <Tab.Screen 
+        name="MedicalRecordTab" 
+        component={MedicalRecordNavigator} 
+        options={{ 
+          tabBarLabel: 'Bệnh án', 
+          tabBarIcon: ({ color }) => <Icon size={20} source="file-document"  color={color} /> }} 
+      />
       <Tab.Screen
-        name="User"
+        name="UserTab"
         component={StackUserNavigator}
         options={{
           tabBarLabel: "Tài khoản",
@@ -149,6 +174,7 @@ const TabNavigatior = () => {
         }}
       />
     </Tab.Navigator>
+    
   );
 };
 

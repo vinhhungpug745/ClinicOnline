@@ -105,7 +105,7 @@ const Workday = () => {
                         style={{ borderRadius: 20, elevation: 2, shadowColor: '#0f766e', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 }}
                         onDayPress={(day) => {
                             if (workdays.map(d => d.date).includes(day.dateString))
-                                navigation.navigate("User", {
+                                navigation.navigate("UserTab", {
                                     screen: "Schedule",
                                     params: { id: workdays.find(d => d.date === day.dateString)?.id }
                                 });
@@ -165,7 +165,7 @@ const Workday = () => {
                 />
             </View>
             <AppButton label="Thêm ngày làm việc" mode="contained" onPress={() => {
-                navigation.navigate("User", { screen: "Schedule" });
+                navigation.navigate("UserTab", { screen: "Schedule" });
             }} />
         </View>
     );

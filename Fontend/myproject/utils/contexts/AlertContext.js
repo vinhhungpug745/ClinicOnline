@@ -29,11 +29,11 @@ const AlertProvider = ({ children }) => {
             actions: [
                 {
                     text: 'Quay lại trang chủ',
-                    onPress: ()=>{navigation.navigate("Home")}
+                    onPress: ()=>{navigation.navigate("HomeTab")}
                 },
                 {
                     text: 'Đến trang đăng nhập',
-                    onPress: () => {navigation.navigate("User",{screen : "Login"})},
+                    onPress: () => {navigation.navigate("UserTab",{screen : "Login"})},
                 },
             ],
             dismissable: true
@@ -49,7 +49,7 @@ const AlertProvider = ({ children }) => {
             actions: [
                 {
                     text: 'Thoát',
-                    onPress: ()=>{navigation.navigate("Home")}
+                    onPress: ()=>{navigation.navigate("HomeTab")}
                 }
             ],
             dismissable: true

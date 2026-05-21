@@ -20,7 +20,15 @@ export const endpoints = {
     'appointmentDetail': (id) => `/appointments/${id}/`,
     'workday': '/users/workday_staff/',
     'updateworkday': (id) => `/users/workday/${id}/timeslots/`,
-    'chatgemini': '/chatbox/'
+    'chatgemini': '/chatbox/',
+    'medicines': '/medicines/',
+    'prescriptions': '/prescriptions/',
+    'prescriptionDetail': (id) => `/prescriptions/${id}/`,
+    'medicalRecords': '/medical-records/',
+    'medicalRecordDetail': (id) => `/medical-records/${id}/`,
+    'tests': '/tests/',
+    'testResults': '/test-results/',
+    'testResultDetail': (id) => `/test-results/${id}/`,
 }
 
 export const authApis = (token) => {

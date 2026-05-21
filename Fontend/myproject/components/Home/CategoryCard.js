@@ -7,14 +7,14 @@ import AnimatedPressable from "../Animation/AnimatedPressable";
 
 
 const categories = [
-    { id: "1", icon: "calendar-plus", label: "Đặt khám\ntại cơ sở", screen: "Booking" },
-    { id: "2", icon: "stethoscope", label: "Đặt khám\nchuyên khoa", screen: "Booking" },
-    { id: "3", icon: "test-tube", label: "Đặt lịch\nxét nghiệm", screen: "Booking" },
-    { id: "4", icon: "shield-plus", label: "Gói sức khỏe\ntoàn diện", screen: "Booking" },
-    { id: "5", icon: "account-heart", label: "Giúp việc\ncá nhân", screen: "Booking" },
-    { id: "6", icon: "video", label: "Gọi video\nvới bác sĩ", screen: "Chat" },
-    { id: "7", icon: "clock-outline", label: "Đặt khám\nngoài giờ", screen: "Booking" },
-    { id: "8", icon: "office-building-outline", label: "Khám doanh\nnghiệp", screen: "Booking" },
+    { id: "1", icon: "calendar-plus", label: "Đặt khám\ntại cơ sở", screen: "BookingTab" },
+    { id: "2", icon: "stethoscope", label: "Đặt khám\nchuyên khoa", screen: "BookingTab" },
+    { id: "3", icon: "test-tube", label: "Đặt lịch\nxét nghiệm", screen: "BookingTab" },
+    { id: "4", icon: "shield-plus", label: "Gói sức khỏe\ntoàn diện", screen: "BookingTab" },
+    { id: "5", icon: "account-heart", label: "Giúp việc\ncá nhân", screen: "BookingTab" },
+    { id: "6", icon: "video", label: "Gọi video\nvới bác sĩ", screen: "ChatTab" },
+    { id: "7", icon: "clock-outline", label: "Đặt khám\nngoài giờ", screen: "BookingTab" },
+    { id: "8", icon: "office-building-outline", label: "Khám doanh\nnghiệp", screen: "BookingTab" },
 ];
 
 const CategoryCard = () => {

@@ -186,7 +186,7 @@ const ProfileDetail = () => {
             >
                 <View pointerEvents={change ? "none" : "auto"}>
                     <PersonalInfoCard err={erro} data={profileDetail} updatePatient={updatePatient} />
-                    {user.role === "customer" ? (
+                    {user?.role === "customer" ? (
                         <>
                             <InsuranceCard err={erro} data={profileDetail} updateProfile={updateProfile} />
                             <MedicalInfoCard data={profileDetail} updateProfile={updateProfile} />
