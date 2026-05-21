@@ -31,8 +31,13 @@ const BookingReducer = (state, action) => {
             };
 
         case "RESET_ALL":
-            return { ...initialState, patient: state.patient };
-
+            return {
+                ...initialState,
+                patient: action.value ? {
+                    ...action.value,
+                    profile: null,
+                } : null
+            };
         default:
             return state;
     }

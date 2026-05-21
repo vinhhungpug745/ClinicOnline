@@ -7,6 +7,7 @@ router.register('users', views.UserViewSet, basename='user')
 router.register('doctors', views.DoctorProfileViewSet, basename='doctors')
 router.register('appointments', views.AppointmentViewSet, basename='appointment')
 router.register('specialtys', views.SpecialtyViewSet, basename='specialty')
+router.register('services_normal', views.ServiceNormalViewSet, basename='services_normal')
 router.register('chatbox',views.GeminiChatViewSet, basename='chatbox')
 router.register('medicines', views.MedicineViewSet, basename='medicine')
 router.register('prescriptions', views.PrescriptionViewSet, basename='prescription')
@@ -15,4 +16,5 @@ router.register('test-results', views.TestResultViewSet, basename='test-result')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('stats/', views.TotalStatView.as_view(), name='stats'),
 ]

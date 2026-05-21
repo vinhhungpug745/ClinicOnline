@@ -86,7 +86,12 @@ export const createPublic = async (endpoint, body, onSuccess, onError, headers =
     try {
         let res = await Apis.post(endpoint, body, { headers });
         if (res.status === 200 || res.status === 201) onSuccess(res.data);
-    } catch (err) { handleError(err, onError); }
+    } catch (err) { 
+        console.log('Error status:', err.response?.status);
+        console.log('Error data:', err.response?.data);
+        console.log('Error message:', err.message);
+        handleError(err, onError); 
+    }
     finally {
         onFinally?.();
         setLoading?.(false);

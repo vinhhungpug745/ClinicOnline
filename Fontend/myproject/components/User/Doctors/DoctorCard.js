@@ -1,10 +1,16 @@
-import { Button, Avatar, Card } from "react-native-paper";
+import { Button, Avatar, Card, List } from "react-native-paper";
 import { View, Text } from "react-native";
 import StylesDoctorCard from "./StylesDoctorCard";
 import AnimatedPressable from "../../Animation/AnimatedPressable";
 import AppButton from "../../AppButton";
 
 const DoctorCard = ({ item, navigation }) => {
+    const formatDate = (dob) => {
+        if (!dob) return "Chưa cập nhật";
+        const [year, month, day] = dob.split("-");
+        return `${day}/${month}/${year}`;
+    };
+
     return (
         <AnimatedPressable scaleTo={0.97} bounciness={8}>
             <Card
@@ -38,13 +44,26 @@ const DoctorCard = ({ item, navigation }) => {
                     </View>
 
                     <View style={StylesDoctorCard.infoRow}>
-                        <Text style={{ fontSize: 12 }}>
-                            {item.gender === "male" ? "👨‍⚕️" : item.gender === "female" ? "👩‍⚕️" : "🧑‍⚕️"}
-                        </Text>
-                        <Text style={StylesDoctorCard.infoText}>
-                            {item.gender === "male" ? "Nam" : item.gender === "female" ? "Nữ" : "Khác"}
+
+                        <View style={StylesDoctorCard.infoItem}>
+                            <Text style={[StylesDoctorCard.infoValue, {fontSize: 12}]}>{formatDate(item.dob)}</Text>
+                        </View>
+                        <View style={StylesDoctorCard.infoRow}>
+                            <Text style={{ fontSize: 12 }}>
+                                {item.gender === "male" ? "👨‍⚕️" : item.gender === "female" ? "👩‍⚕️" : "🧑‍⚕️"}
+                            </Text>
+                            <Text style={StylesDoctorCard.infoText}>
+                                {item.gender === "male" ? "Nam" : item.gender === "female" ? "Nữ" : "Khác"}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <List.Icon icon="cash" color="#64748b" size={11} />
+                        <Text style={{ fontSize: 11, color: '#64748b' }}>
+                            {new Intl.NumberFormat('vi-VN').format(item.price)} VND
                         </Text>
                     </View>
+
                 </Card.Content>
 
                 <Card.Actions style={StylesDoctorCard.cardActions}>

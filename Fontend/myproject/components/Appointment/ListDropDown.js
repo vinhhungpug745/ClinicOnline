@@ -67,7 +67,6 @@ const ListDropDown = ({ title, value, icon, data, onSelect, setPage, Icon }) => 
                                     {/* Email + Phone */}
                                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <Text style={{ fontSize: 11, color: '#94a3b8' }}></Text>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                                 <List.Icon icon="cash" color="#64748b" size={11} />
                                                 <Text style={{ fontSize: 11, color: '#64748b' }}>
@@ -94,6 +93,17 @@ const ListDropDown = ({ title, value, icon, data, onSelect, setPage, Icon }) => 
                                         <Text style={styles.itemTitle}>{item.name}</Text>
                                         {item.description &&
                                             <Text style={styles.itemDesc}>{item.description}</Text>
+                                        }
+                                        {item.price ? (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                        <List.Icon icon="cash" color="#64748b" size={11} />
+                                                        <Text style={{ fontSize: 11, color: '#64748b' }}>
+                                                            {new Intl.NumberFormat('vi-VN').format(item.price)} VND
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            ) : null
                                         }
                                     </View>
                                 </View>

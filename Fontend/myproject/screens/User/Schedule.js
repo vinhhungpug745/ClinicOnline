@@ -172,6 +172,11 @@ const Schedule = ({ route }) => {
 
     if (loadingFetch) return <LoadingScreen text="Đang tải thông tin..." />;
 
+    const formattedSlots = schedule.time_slots.map(slot => ({
+        ...slot,
+        label: `${slot.start_time} - ${slot.end_time}`,
+    }));
+    
     return (
         <View style={{ flex: 1 }}>
             <AppHeader titles="Lịch làm việc" onBack={() => {

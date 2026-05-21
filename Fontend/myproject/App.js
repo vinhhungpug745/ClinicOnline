@@ -30,6 +30,7 @@ import Mystyles from './styles/Mystyles';
 import COLORS from './styles/Colors';
 import Chat from './screens/BoxChat/Chat';
 import Search from './screens/Home/Search';
+import Total from './screens/Report/Total';
 
 
 const Stack = createNativeStackNavigator();
@@ -105,41 +106,68 @@ const TabNavigatior = () => {
           tabBarIcon: ({ color }) => <Icon size={22} source="home-outline" color={color} />,
         }}
       />
-      <Tab.Screen
-        name="Booking"
-        component={AppointmentNavigator}
-        options={{
-          tabBarLabel: "Đặt lịch",
-          tabBarIcon: ({ color }) => <Icon size={22} source="calendar-plus" color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Chat"
-        component={Chat}
-        options={{
-          tabBarLabel: "Chatbox hỗ trợ",
-          tabBarIcon: ({ color }) => <Icon size={22} source="message-text" color={color} />,
-        }}
-      />
-      {user && (user.role === "doctor" || user.role === "healthcare") && (
-        <Tab.Screen
-          name="Workday"
-          component={Workday}
-          options={{
-            tabBarLabel: "Lịch làm",
-            tabBarIcon: ({ color }) => <Icon size={22} source="calendar-check-outline" color={color} />,
-          }}
-        />
+
+      {!user?.is_superuser && (
+        <>
+          <Tab.Screen
+            name="Chat"
+            component={Chat}
+            options={{
+              tabBarLabel: "Chatbox hỗ trợ",
+              tabBarIcon: ({ color }) => <Icon size={22} source="message-text" color={color} />,
+            }}
+          />
+          {user?.role === "doctor" || user?.role === "healthcare" ? (
+            <Tab.Screen
+              name="Workday"
+              component={Workday}
+              options={{
+                tabBarLabel: "Lịch làm",
+                tabBarIcon: ({ color }) => <Icon size={22} source="calendar-check-outline" color={color} />,
+              }}
+            />
+          ) : (
+            <Tab.Screen
+              name="Booking"
+              component={AppointmentNavigator}
+              options={{
+                tabBarLabel: "Đặt lịch",
+                tabBarIcon: ({ color }) => <Icon size={22} source="calendar-plus" color={color} />,
+              }}
+            />
+          )}
+          <Tab.Screen
+            name="TabAppointments"
+            component={ListAppointmentNavigator}
+            options={{
+              tabBarLabel: "Lịch hẹn",
+              tabBarIcon: ({ color }) => <Icon size={22} source="clipboard-list-outline" color={color} />,
+            }}
+          />
+        </>
       )}
 
-      <Tab.Screen
-        name="TabAppointments"
-        component={ListAppointmentNavigator}
-        options={{
-          tabBarLabel: "Lịch hẹn",
-          tabBarIcon: ({ color }) => <Icon size={22} source="clipboard-list-outline" color={color} />,
-        }}
-      />
+      {user?.is_superuser && (
+        <>
+          <Tab.Screen
+            name="CreateStaff"
+            component={() => <Register is_superuser={true} />}
+            options={{
+              tabBarLabel: "Tạo tài khoản nhân viên",
+              tabBarIcon: ({ color }) => <Icon size={22} source="account-circle-outline" color={color} />,
+            }}
+          />
+          <Tab.Screen
+            name="Total"
+            component={Total}
+            options={{
+              tabBarLabel: "Thống kê",
+              tabBarIcon: ({ color }) => <Icon size={22} source="account-circle-outline" color={color} />,
+            }}
+          />
+        </>
+      )}
+
       <Tab.Screen
         name="User"
         component={StackUserNavigator}
@@ -155,13 +183,10 @@ const TabNavigatior = () => {
 const App = () => {
 
   const [user, dispatch] = useReducer(MyUserReducer, null);
-  // const { showAlert } = useAlert()
   const loadUser = async () => {
     try {
       const savedStr = await SecureStore.getItemAsync("user");
       const saved = savedStr ? JSON.parse(savedStr) : null;
-
-      console.log("Saved user loaded:", saved);
 
       if (saved === null) return;
 

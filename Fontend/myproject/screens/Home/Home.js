@@ -99,7 +99,7 @@ const Home = ({ navigation, route }) => {
                             color: COLORS.text,
 
                         }}>
-                            Xin chào, Vui lòng đăng nhặp để tặng hưởng dịch vụ 👋
+                            Xin chào, Vui lòng đăng nhặp để tận hưởng dịch vụ 👋
                         </Text>
                     )}
 

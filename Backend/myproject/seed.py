@@ -319,3 +319,130 @@ for i in range(10):
     print(f"✅ Appointment ID={appointment.id} | {customer.username} -> {doctor.username}")
 
 print(f"\n🎉 Seed hoàn tất! Tổng appointments tạo mới: {appointments_created}")
+
+# Thêm vào cuối file seed, sau phần WORKDAY + TIMESLOT + APPOINTMENT
+
+# =========================================================
+# THÊM CUSTOMERS ĐỂ TEST THỐNG KÊ
+# =========================================================
+extra_customers_data = [
+    ("Nam",      "Nguyễn Văn",  "male",   "09022200001", date(2000, 3, 15)),   # 26t
+    ("Hùng",     "Trần Văn",    "male",   "09022200002", date(1995, 7, 20)),   # 31t
+    ("Linh",     "Lê Thị",      "female", "09022200003", date(1990, 1, 10)),   # 36t
+    ("Hoa",      "Phạm Thị",    "female", "09022200004", date(1985, 5, 25)),   # 41t
+    ("Tuấn",     "Hoàng Văn",   "male",   "09022200005", date(2010, 8, 5)),    # 16t
+    ("Lan",      "Vũ Thị",      "female", "09022200006", date(1975, 11, 30)),  # 51t
+    ("Dũng",     "Đặng Văn",    "male",   "09022200007", date(2005, 4, 18)),   # 21t
+    ("Yến",      "Bùi Thị",     "female", "09022200008", date(1968, 9, 12)),   # 58t
+    ("Khoa",     "Đỗ Văn",      "male",   "09022200009", date(1998, 6, 22)),   # 28t
+    ("Mai",      "Ngô Thị",     "female", "09022200010", date(2008, 2, 14)),   # 18t
+    ("Phúc",     "Dương Văn",   "male",   "09022200011", date(1980, 12, 8)),   # 46t
+    ("Thảo",     "Lý Thị",      "female", "09022200012", date(1993, 3, 27)),   # 33t
+    ("Minh",     "Phan Văn",    "male",   "09022200013", date(2003, 7, 3)),    # 23t
+    ("Ngọc",     "Võ Thị",      "female", "09022200014", date(1970, 10, 19)), # 56t
+    ("Tài",      "Đinh Văn",    "male",   "09022200015", date(1988, 4, 6)),    # 38t
+]
+
+extra_customers = []
+for i, (first_name, last_name, gender, phone, dob) in enumerate(extra_customers_data):
+    username = f"test_customer{i + 1}"
+    customer, created = User.objects.get_or_create(username=username)
+    if created:
+        customer.set_password("Customer@123")
+        customer.first_name = first_name
+        customer.last_name = last_name
+        customer.email = f"{username}@gmail.com"
+        customer.phone = phone
+        customer.role = User.Role.CUSTOMER
+        customer.gender = gender
+        customer.dob = dob
+        customer.save()
+
+        CustomerProfile.objects.create(
+            user=customer,
+            height=random.randint(150, 185),
+            weight=random.randint(45, 90),
+            blood_group=random.choice(["A+", "B+", "O+", "AB+"]),
+        )
+        print(f"✅ Extra customer: {username} - {last_name} {first_name} - dob: {dob}")
+    else:
+        print(f"⚠️  Exists: {username}")
+    extra_customers.append(customer)
+
+all_customers = customers + extra_customers
+
+# =========================================================
+# COMPLETED APPOINTMENTS ĐỂ TEST THỐNG KÊ
+# =========================================================
+completed_time_slots = [
+    (time(8,  0), time(8,  30)),
+    (time(8, 30), time(9,   0)),
+    (time(9,  0), time(9,  30)),
+    (time(9, 30), time(10,  0)),
+    (time(10, 0), time(10, 30)),
+    (time(10,30), time(11,  0)),
+    (time(11, 0), time(11, 30)),
+    (time(13, 0), time(13, 30)),
+    (time(13,30), time(14,  0)),
+    (time(14, 0), time(14, 30)),
+]
+
+completed_count = 0
+
+for i in range(60):
+    customer  = random.choice(all_customers)
+    doctor    = random.choice(doctors)
+    service   = random.choice(services)
+
+    # tạo ngày trong quá khứ để test doanh thu theo tháng
+    days_ago  = random.randint(1, 150)
+    work_date = timezone.now().date() - timedelta(days=days_ago)
+
+    try:
+        staff_profile = StaffProfile.objects.get(user=doctor)
+        work_day, _   = WorkDay.objects.get_or_create(
+            staff_profile=staff_profile,
+            date=work_date
+        )
+
+        start_time, end_time = random.choice(completed_time_slots)
+        time_slot, created = TimeSlot.objects.get_or_create(
+            work_day=work_day,
+            start_time=start_time,
+            defaults={
+                "end_time": end_time,
+                "status": TimeSlot.Status.BOOKED
+            },
+        )
+
+        if not created:
+            continue
+
+        appointment = Appointment.objects.create(
+            reason=random.choice([
+                "Khám tổng quát", "Đau đầu kéo dài",
+                "Khó thở", "Đau bụng", "Sốt cao",
+                "Kiểm tra định kỳ", "Tái khám",
+            ]),
+            symptoms=random.choice([
+                "Đau họng", "Sốt", "Ho", "Mệt mỏi",
+                "Chóng mặt", "Buồn nôn", "Đau lưng",
+            ]),
+            status=Appointment.Status.COMPLETED,  # ✅ COMPLETED để test thống kê
+            customer=customer,
+            doctor=doctor,
+            serviceNormal=service,
+            time_slot=time_slot,
+        )
+
+        time_slot.status = TimeSlot.Status.BOOKED
+        time_slot.save()
+
+        completed_count += 1
+        print(f"✅ COMPLETED Appointment ID={appointment.id} | {customer.username} -> {doctor.username} | {work_date}")
+
+    except Exception as e:
+        print(f"❌ Lỗi: {e}")
+        continue
+
+print(f"\n🎉 Seed hoàn tất! Tổng COMPLETED appointments: {completed_count}")

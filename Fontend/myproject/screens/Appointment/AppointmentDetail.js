@@ -166,7 +166,6 @@ const AppointmentDetail = ({ route }) => {
             {user?.role === "customer" && appointmentDetail.status !== "Confirmed" && (
                 <>
                     <AppButton type="delete" onPress={console.log("anh yeu em")} />
-                    <AppButton type="edit" onPress={console.log("anh yêu em")} />
                 </>
             )}
             <AppSnackbar

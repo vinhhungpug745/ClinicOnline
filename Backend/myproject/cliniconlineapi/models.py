@@ -121,6 +121,7 @@ class TimeSlot(BaseModel):
 class ServiceNormal(BaseModel):
     name = models.CharField(max_length=200, unique=True)
     description = models.TextField(blank=True,max_length=200,null=True)
+    price = models.FloatField(null=True, blank=True, default=0)
 
 # Lịch hẹn
 class Appointment(BaseModel):
@@ -229,3 +230,6 @@ class TestResult(BaseModel):
 
     def __str__(self):
         return f"{self.test_name} - {self.medical_record}"
+
+
+

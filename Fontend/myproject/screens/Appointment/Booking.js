@@ -34,7 +34,6 @@ const BookingContent = () => {
     const [loadingForm, setLoadingForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [snackbar, setSnackbar] = useState({});
-    const [success, setSuccess] = useState(false);
     const { showAlert, showAlertAuth ,showAlertAuth403} = useAlert();
     const { bookingData, resetAll, updateBooking } = useBooking();
     const route = useRoute();
@@ -97,8 +96,8 @@ const BookingContent = () => {
                 formatBooking(bookingData),
                 (data) => {
                     setSnackbar({ visible: true, message: "Đặt lịch thành công!", type: 'success' });
-                    setSuccess(true);
                     resetAll();
+                    updateBooking("patient", user);
                     setStep(0);
                 },
                 (type, msg) => {
@@ -125,8 +124,8 @@ const BookingContent = () => {
 
             {step < 3 && (
                 <View>
-                    {step === 2 ? (
-                        !success && (
+                    {step === 2 ?
+                        (
                             <AppButton
                                 type="confirm"
                                 label="Xác nhận đặt lịch"
@@ -134,13 +133,12 @@ const BookingContent = () => {
                                 loading={loading}
                                 onPress={() => appointment()}
                             />
-                        )) : (
+                        ) : (
                         <AppButton
                             type="next"
                             disabled={!canGoNext()}
                             onPress={() => {
                                 setStep(prev => prev + 1);
-                                console.log(bookingData);
                             }}
                         />
                     )}
@@ -148,7 +146,9 @@ const BookingContent = () => {
                         <AppButton
                             type="back"
                             disabled={step === 0}
-                            onPress={() => setStep(prev => prev - 1)}
+                            onPress={() => {
+                                console.log(bookingData)
+                                setStep(prev => prev - 1)}}
                         />
                     )}
                 </View>
