@@ -53,6 +53,42 @@ class IsDoctorAndAppointmentOwner(IsAppointmentOwner):
                 request.user == Appointment.doctor
         )
 
+class IsOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+
+        # Customer là chủ lịch hẹn
+        if request.user.role == User.Role.CUSTOMER:
+            return (
+                super().has_object_permission(request, view) and
+                request.user == obj.appointment.customer
+            )
+
+        # Doctor là bác sĩ của lịch hẹn
+        elif request.user.role == User.Role.DOCTOR:
+            return (
+                    super().has_object_permission(request, view) and
+                    request.user == obj.appointment.doctor
+            )
+
+        return False
+
+
+class IsDoctorAndMedicalRecordOwner(IsAppointmentOwner):
+    def has_object_permission(self, request, view,MedicalRecord):
+        return (
+                super().has_permission(request, view) and
+                request.user.role == User.Role.DOCTOR and
+                request.user == MedicalRecord.appointment.doctor
+        )
+
+class IsDoctorAndTestResultOwner(IsAppointmentOwner):
+    def has_object_permission(self, request, view,TestResult):
+        return (
+                super().has_permission(request, view) and
+                request.user.role == User.Role.DOCTOR and
+                request.user == TestResult.MedicalRecord.appointment.doctor
+        )
+
 class IsCustomerAndAppointmentOwner(IsAppointmentOwner):
     def has_object_permission(self, request, view, Appointment):
         return (

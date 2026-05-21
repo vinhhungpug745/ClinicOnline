@@ -95,6 +95,10 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
         }
     };
 
+    console.log(user?.role);
+console.log(status);
+console.log(selected);
+
     return (
         <TouchableOpacity
             activeOpacity={0.85}
@@ -102,7 +106,7 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
             onLongPress={
                 (user?.role === "doctor" && status === "Pending") ||
                 (user?.role === "customer" && (status === "Pending" || status === "Canceled")) || 
-                (user?.role === "doctor" && status === "Pending_payment")
+                (user?.role === "customer" && status === "Pending_payment")
                 ? showActions
                 : undefined
             }
@@ -203,6 +207,36 @@ const AppointmentCard = ({ item, onPress, onConfirm, onReject }) => {
                                     onPress={() => {
                                         hideActions();
                                         onReject?.(id);
+                                    }}
+                                />
+                            </View>
+                        </Animated.View>
+                    </View>
+                )}
+
+                    
+                {(user?.role === "customer" && status === "Pending_payment") && (
+                    <View>
+                        <View style={styles.divider} />
+
+                        {/* ── Footer ── */}
+                        <View style={styles.footer}>
+                            <Text style={styles.appointmentId}>Mã lịch hẹn #{id}</Text>
+                            {selected
+                                ? <Text style={styles.tapHint}>Nhấn ra ngoài để đóng</Text>
+                                : <Text style={styles.detailLink}>Xem chi tiết ›</Text>
+                            }
+                        </View>
+
+                        <Animated.View style={[styles.actionWrap, { height: actionHeight, opacity: actionOpacity }]}>
+                            <View style={{ flex: 1 }}>
+                                <AppButton
+                                    type="confirm"
+                                    label={"Xác nhận"}
+                                    style={styles.actionBtn}
+                                    onPress={() => {
+                                        hideActions();
+                                        navigation.navigate("Payment", { appointmentId: id });
                                     }}
                                 />
                             </View>

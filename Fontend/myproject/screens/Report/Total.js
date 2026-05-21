@@ -237,15 +237,6 @@ const Total = ({ navigation }) => {
             <p style="color:#94a3b8; font-size:13px;">Xuất lúc: ${new Date().toLocaleString('vi-VN')}</p>
 
             <h2>Tổng quan</h2>
-            <div>
-                ${STATS.map(s => `
-                    <div class="stat">
-                        <div class="stat-label">${s.label}</div>
-                        <div class="stat-value" style="color:${s.color}">${s.value}</div>
-                        <div style="font-size:11px;color:#64748b">${s.sub}</div>
-                    </div>
-                `).join('')}
-            </div>
 
             ${reportType ? `
                 <h2>${reportType.name}</h2>
@@ -254,10 +245,10 @@ const Total = ({ navigation }) => {
                         <th>Nhãn</th>
                         <th>Giá trị</th>
                     </tr>
-                    ${chartData?.bar?.labels?.map((label, i) => `
+                    ${dataChart?.bar?.labels?.map((label, i) => `
                         <tr>
                             <td>${label}</td>
-                            <td>${chartData.bar.datasets[0].data[i]}</td>
+                            <td>${dataChart.bar.datasets[0].data[i]}</td>
                         </tr>
                     `).join('')}
                 </table>
@@ -439,6 +430,13 @@ const Total = ({ navigation }) => {
 
 
             </ScrollView>
+
+            <AppButton
+                type="confirm"
+                label="Xuất báo cáo PDF"
+                disabled={!reportType}
+                onPress={() => exportPDF()}
+            />
 
             {showStart && (
                 <DateTimePicker

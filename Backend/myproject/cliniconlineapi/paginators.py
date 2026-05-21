@@ -9,4 +9,5 @@ class CommentPaginator(pagination.PageNumberPagination):
     page_size = 2
 
 class SpecialtyPaninator(pagination.PageNumberPagination):
-    page_size = 5
+    page_size = 7
+

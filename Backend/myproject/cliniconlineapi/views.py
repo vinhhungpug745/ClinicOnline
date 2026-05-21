@@ -7,7 +7,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from oauth2_provider.contrib.rest_framework import permissions
 from django.utils.timezone import now
-from rest_framework import viewsets, generics, parsers, status, permissions
+from rest_framework import viewsets, generics, parsers, status, permissions, pagination
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
@@ -357,6 +357,7 @@ class GeminiChatViewSet(viewsets.ViewSet, generics.CreateAPIView):
 class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
     serializer_class = MedicineSerializer
     queryset = Medicine.objects.filter(active=True)
+    pagination_class = [paginators.SpecialtyPaninator]
 
 
     def get_permissions(self):
@@ -364,10 +365,8 @@ class MedicineViewSet(viewsets.ViewSet,generics.ListCreateAPIView):
                            'low_stock', 'expiring_soon']:
             return [permission.IsHealthcareRole()]
 
-        if self.action in ['list']:
-            return [permission.IsStaffRole()]
 
-        return [permission.IsAuthenticated()]
+        return [permission.IsStaffRole()]
 
 
     def list(self, request, *args, **kwargs):
@@ -492,6 +491,12 @@ class TestResultViewSet(viewsets.ModelViewSet):
             return TestResultUpdateSerializer
         return TestResultSerializer
 
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permission.IsDoctorAndTestResultOwner()]
+
+        return [permission.IsDoctorRole()]
+
 
     def get_queryset(self):
         user = self.request.user
@@ -556,6 +561,12 @@ class MedicalRecordViewSet(viewsets.ViewSet, generics.ListCreateAPIView, generic
     queryset = MedicalRecord.objects.filter(active=True)
     serializer_class = MedicalRecordListSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permission.IsDoctorAndMedicalRecordOwner()]
+
+        return [permission.IsOwner()]
 
     def get_queryset(self):
         user = self.request.user

@@ -20,7 +20,7 @@ const InsuranceCard = ({ data, updateProfile, err = {} }) => {
                     <Field label="Số thẻ BHYT">
                         <StyledInput
                             placeholder="VD: HS4012345678901"
-                            value={p.profile.insurance_number}
+                            value={p.profile?.insurance_number}
                             onChangeText={(v) => updateProfile("insurance_number", v)}
                             autoCapitalize="characters"
                             error={!!err.insurance_number}
@@ -34,7 +34,7 @@ const InsuranceCard = ({ data, updateProfile, err = {} }) => {
                                 placeholder="DD/MM/YYYY"
                                 editable={false}
                                 pointerEvents="none"
-                                value={p && p.profile.insurance_expiry_date ? new Date(p.profile.insurance_expiry_date).toLocaleDateString('vi-VN') : ""}
+                                value={p && p.profile?.insurance_expiry_date ? new Date(p.profile?.insurance_expiry_date).toLocaleDateString('vi-VN') : ""}
                                 error={!!err.insurance_expiry_date}
                                 errorMessage={err.insurance_expiry_date}
                             />

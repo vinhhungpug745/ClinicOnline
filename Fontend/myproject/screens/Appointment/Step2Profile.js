@@ -73,7 +73,7 @@ const Step2Profile = () => {//{ data, updatePatient, updateProfile }
                     <Field label="Lý do khám" required>
                         <StyledInput
                             placeholder="VD: Đau đầu, mệt mỏi, khám định kỳ..."
-                            value={p.reason}
+                            value={p?.reason}
                             onChangeText={(v) => updatePatient("reason", v)}
                         />
                     </Field>
@@ -81,7 +81,7 @@ const Step2Profile = () => {//{ data, updatePatient, updateProfile }
                     <Field label="Triệu chứng đang gặp phải">
                         <StyledInput
                             placeholder="VD: Sốt 3 ngày, ho khan, khó thở nhẹ..."
-                            value={p.symptoms}
+                            value={p?.symptoms}
                             onChangeText={(v) => updatePatient("symptoms", v)}
                             multiline
                             numberOfLines={4}

@@ -54,7 +54,7 @@ const BookingContent = () => {
 
     const canGoNext = () => {
         if (step === 0) return bookingData.doctor && bookingData.serviceNormal && Object.keys(bookingData.slots).length > 0;
-        if (step === 1) return bookingData.patient.last_name && bookingData.patient.first_name;
+        if (step === 1) return bookingData.patient?.last_name && bookingData.patient?.first_name;
         if (step === 2) return true;
         return false;
     };
